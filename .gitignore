@@ -1,3 +1,4 @@
 waters_methods.json
 *.json
 .env
+venv/
