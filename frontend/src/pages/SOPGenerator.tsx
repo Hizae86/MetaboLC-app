@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const GUIDELINES = [
   { id: 'clsi', label: 'CLSI EP15-A3 + EP17-A2 + C62-A', checked: true },

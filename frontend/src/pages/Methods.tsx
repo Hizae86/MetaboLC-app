@@ -5,7 +5,7 @@ import axios from 'axios'
 import TrendingCarousel from '../components/TrendingCarousel'
 import MiniChromatogram from '../components/MiniChromatogram'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRIX_CLS: Record<string, string> = {
   plasma: 'bg-red-50 text-red-700 border-red-200',

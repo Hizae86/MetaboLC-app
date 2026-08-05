@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import axios from 'axios'
 import TrendingCarousel from '../components/TrendingCarousel'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const QUICK_CHIPS = [
   { label: 'Steroids in serum', query: 'steroid serum', Icon: FlaskConical },

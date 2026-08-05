@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Flame, Eye, CheckCircle } from 'lucide-react'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRIX_CLS: Record<string, { bg: string; text: string; border: string }> = {
   plasma:             { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca' },

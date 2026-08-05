@@ -4,7 +4,7 @@ import MethodComparator from '../components/MethodComparator'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const toTitleCase = (s: string) =>
   s.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())

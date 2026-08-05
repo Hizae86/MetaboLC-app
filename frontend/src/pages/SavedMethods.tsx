@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import axios from 'axios'
 import StarButton from '../components/StarButton'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRIX_STYLE: Record<string,{bg:string,color:string}> = {
   plasma:{bg:'#fee2e2',color:'#b91c1c'},serum:{bg:'#ffedd5',color:'#c2410c'},

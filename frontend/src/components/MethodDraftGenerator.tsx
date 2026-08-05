@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRICES = ['Plasma', 'Serum', 'Urine', 'Whole blood', 'Dried blood spot', 'CSF', 'Saliva']
 const APPLICATIONS = [
