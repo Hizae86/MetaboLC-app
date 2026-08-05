@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, Grid3X3, List } from 'lucide-react'
 import axios from 'axios'
 import TrendingCarousel from '../components/TrendingCarousel'
-import MiniChromatogram from '../components/MiniChromatogram'
+import ChromatogramChart from '../components/ChromatogramChart'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
@@ -38,10 +38,11 @@ export default function Methods() {
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [matrixFilter, setMatrixFilter] = useState('')
+  const [page, setPage] = useState(20)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    axios.get(`${API}/methods/all`)
+    axios.get(`${API}/methods/summary`)
       .then(res => setMethods(res.data))
       .finally(() => setLoading(false))
   }, [])
@@ -120,7 +121,7 @@ export default function Methods() {
         <div className="text-center py-16 text-slate-400 text-sm">No methods found</div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map(m => {
+          {filtered.slice(0, page).map(m => {
             const matrixKey = (m.matrix || 'other').toLowerCase()
             const matrixCls = MATRIX_CLS[matrixKey] || MATRIX_CLS.other
             const vendorCls = VENDOR_CLS[m.instrument_manufacturer] || VENDOR_CLS.other
@@ -150,21 +151,21 @@ export default function Methods() {
                       {m.analyte?.split(',').slice(0, 3).join(', ')}
                       {m.analyte?.split(',').length > 3 ? '…' : ''}
                     </p>
-                    {/* Mini chromatogram */}
-                    <div className="rounded-lg overflow-hidden bg-slate-50 mb-2">
-                      <MiniChromatogram
-                        transitions={m.mrm_transitions || []}
-                        matrix={m.matrix}
-                        height={40}
-                      />
-                    </div>
+
+                    {/* Cached chromatogram */}
+                    {m.chromatogram_svg && (
+                      <div className="rounded-lg overflow-hidden bg-slate-50 mb-2"
+                        style={{height:'40px', lineHeight:0}}
+                        dangerouslySetInnerHTML={{__html: m.chromatogram_svg}} />
+                    )}
+
                     {/* Footer */}
                     <div className="flex items-center justify-between">
                       <span className={`text-xs px-1.5 py-0.5 rounded-md border font-medium ${vendorCls}`}>
                         {m.instrument_manufacturer}
                       </span>
                       <span className="text-xs text-slate-400 font-mono">
-                        {m.mrm_transitions?.length || 0} MRM
+                        {m.mrm_count || 0} MRM
                       </span>
                     </div>
                   </div>
@@ -195,7 +196,7 @@ export default function Methods() {
                     {m.instrument_manufacturer}
                   </span>
                   <span className="text-xs text-slate-400 font-mono shrink-0">
-                    {m.mrm_transitions?.length || 0} MRM
+                    {m.mrm_count || 0} MRM
                   </span>
                   {m.status === 'verified' && (
                     <span className="text-xs text-green-600 shrink-0">✓</span>

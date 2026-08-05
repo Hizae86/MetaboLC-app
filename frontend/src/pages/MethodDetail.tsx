@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Pencil, CheckCircle, Circle, Download, FileText, FileCode, FileSpreadsheet, Trash2, Hospital, Package } from 'lucide-react'
+import ChromatogramChart from '../components/ChromatogramChart'
 import React, { useState, useEffect } from 'react'
 import StarButton from '../components/StarButton'
 import ConfirmationsPanel from '../components/ConfirmationsPanel'
@@ -468,7 +469,7 @@ export default function MethodDetail() {
         </div>
       )}
 
-      {activeTab==='chromatography' && method && (
+            {activeTab==='chromatography' && method && (
         <SimilarMethods
           methodId={method.id}
           analyte={method.analyte || ''}

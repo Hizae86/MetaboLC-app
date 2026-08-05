@@ -1,3 +1,4 @@
+import ChromatogramChart from './ChromatogramChart'
 import { useState } from 'react'
 
 export default function ChromatographyView({ method }: { method: any }) {
@@ -54,6 +55,29 @@ export default function ChromatographyView({ method }: { method: any }) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+
+      {/* Simulated chromatogram */}
+      {(() => {
+        const COLORS = ['#6366f1','#ec4899','#f97316','#22c55e','#eab308','#14b8a6','#8b5cf6','#f43f5e','#0ea5e9']
+        const quantifiers = (method.mrm_transitions || [])
+          .filter((t: any) => t.is_quantifier && !t.is_internal_standard && t.retention_time_min)
+          .slice(0, 10)
+          .map((t: any, i: number) => ({
+            name: t.compound_name || `Compound ${i+1}`,
+            rt: parseFloat(t.retention_time_min),
+            intensity: 100 - (i * 6),
+            width: 0.08 + (i * 0.01),
+            color: COLORS[i % COLORS.length],
+            adduct: t.pubchem_adduct,
+          }))
+        if (quantifiers.length === 0) return null
+        return (
+          <ChromatogramChart
+            peaks={quantifiers}
+            title="Simulated Chromatogram (based on MRM retention times)"
+          />
+        )
+      })()}
 
       {/* Column card */}
       {(method.column_brand || method.column_name) && (

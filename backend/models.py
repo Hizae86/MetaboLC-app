@@ -110,6 +110,7 @@ class Method(Base):
     lloq_unit = Column(String(20), default='ng/mL')
     view_count = Column(Integer, default=0)
     validation_units = Column(String(20), default='ng/mL')
+    chromatogram_svg = Column(Text, nullable=True)
     status = Column(String(20), default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

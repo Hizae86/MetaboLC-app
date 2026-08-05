@@ -266,6 +266,28 @@ def get_compounds(db: Session = Depends(get_db)):
         })
     return result
 
+@router.get("/summary")
+def get_methods_summary(db: Session = Depends(get_db)):
+    """Lightweight endpoint for method cards - no transitions"""
+    methods = db.query(Method).all()
+    return [{
+        "id": m.id,
+        "title": m.title,
+        "analyte": m.analyte,
+        "matrix": m.matrix,
+        "instrument_manufacturer": m.instrument_manufacturer,
+        "instrument_model": m.instrument_model,
+        "clinical_application": m.clinical_application,
+        "status": m.status,
+        "lloq": m.lloq,
+        "lloq_unit": m.lloq_unit,
+        "column_name": m.column_name,
+        "country": m.country,
+        "laboratory": m.laboratory,
+        "mrm_count": len(m.mrm_transitions),
+        "chromatogram_svg": m.chromatogram_svg,
+    } for m in methods]
+
 @router.get("/trending")
 def get_trending(db: Session = Depends(get_db)):
     from sqlalchemy import text
@@ -280,6 +302,7 @@ def get_trending(db: Session = Depends(get_db)):
         "view_count": m.view_count or 0,
         "lloq": m.lloq,
         "status": m.status,
+            
     } for m in methods]
 
 @router.get("/contributors")
