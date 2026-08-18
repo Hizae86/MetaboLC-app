@@ -151,7 +151,9 @@ class MRMTransition(Base):
     retention_time_min = Column(Float, nullable=True)
     retention_time_window_min = Column(Float, nullable=True)
     dwell_time_ms = Column(Float, nullable=True)
-    is_quantifier = Column(Integer, default=1)  # 1=quantifier, 0=qualifier
+    is_quantifier = Column(Integer, default=1)
+    polarity = Column(String(10), default='ESI+')
+    assigned_is = Column(String(200), nullable=True)  # 1=quantifier, 0=qualifier
     # Waters
     cone_voltage = Column(Float, nullable=True)
     # Agilent

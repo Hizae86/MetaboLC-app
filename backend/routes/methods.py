@@ -30,6 +30,7 @@ class MRMTransitionSchema(BaseModel):
     collision_energy_ev: Optional[float] = None
     declustering_potential: Optional[float] = None
     cell_exit_potential: Optional[float] = None
+    polarity: Optional[str] = 'ESI+'
     retention_time_min: Optional[float] = None
     retention_time_window_min: Optional[float] = None
     dwell_time_ms: Optional[float] = None
@@ -433,7 +434,7 @@ def update_transitions(method_id: int, payload: TransitionsUpdate, db: Session =
     for t in payload.transitions:
         valid = {k: v for k, v in t.items() if k in {
             'compound_name','is_internal_standard','precursor_mz','product_mz',
-            'collision_energy_ev','declustering_potential','cell_exit_potential',
+            'collision_energy_ev','declustering_potential','cell_exit_potential','polarity','assigned_is',
             'retention_time_min','retention_time_window_min','dwell_time_ms','is_quantifier',
             'cone_voltage','cell_accelerator_voltage',
             'q1_pre_bias','q3_pre_bias',

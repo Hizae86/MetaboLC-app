@@ -118,20 +118,26 @@ const MS_SOURCE_PARAMS: Record<string, {label: string, field: string, unit: stri
     {label: 'Desolvation Temperature', field: 'desolvation_temperature_c', unit: '°C'},
   ],
   'Bruker': [
-    {label: 'Capillary Voltage', field: 'capillary_voltage_v', unit: 'V'},
-    {label: 'Source Temperature', field: 'source_temperature_c', unit: '°C'},
+    {label: 'Ion Source Voltage ESI+', field: 'capillary_voltage_pos_v', unit: 'V'},
+    {label: 'Ion Source Voltage ESI-', field: 'capillary_voltage_neg_v', unit: 'V'},
+    {label: 'Probe Gas Flow', field: 'gas1', unit: 'units'},
+    {label: 'Probe Gas Temperature', field: 'source_temperature_c', unit: '°C'},
+    {label: 'Cone Gas Flow', field: 'gas2', unit: 'units'},
+    {label: 'Cone Gas Temperature', field: 'desolvation_temperature_c', unit: '°C'},
+    {label: 'Nebulizing Gas', field: 'nebulizer_pressure_psi', unit: 'units'},
+    {label: 'Collision Gas', field: 'collision_gas', unit: 'mTorr'},
   ],
 }
 
 const MFR_PARAMS: Record<string, {headers: string[], fields: string[]}> = {
-  'Sciex':         { headers: ['CE (eV)', 'DP (V)', 'CXP (V)'],           fields: ['collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
-  'PerkinElmer':   { headers: ['CE (eV)', 'EV (V)', 'CCL2 (V)'],          fields: ['collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
-  'Waters':        { headers: ['CE (eV)', 'Cone (V)'],                     fields: ['collision_energy_ev', 'cone_voltage'] },
-  'Agilent':       { headers: ['CE (eV)', 'Frag (V)', 'Cell Acc'],         fields: ['collision_energy_ev', 'declustering_potential', 'cell_accelerator_voltage'] },
-  'Shimadzu':      { headers: ['CE (eV)', 'Q1 Bias', 'Q3 Bias'],           fields: ['collision_energy_ev', 'q1_pre_bias', 'q3_pre_bias'] },
-  'Thermo Fisher': { headers: ['CE (eV)', 'RF Lens (V)', 'Resolution', 'Max IT (ms)'], fields: ['collision_energy_ev', 'rf_lens_v', 'ms_resolution', 'max_inject_time_ms'] },
-  'Bruker':        { headers: ['CE (eV)'],                                 fields: ['collision_energy_ev'] },
-  'Other':         { headers: ['CE (eV)', 'DP (V)'],                       fields: ['collision_energy_ev', 'declustering_potential'] },
+  'Sciex':         { headers: ['Polarity', 'CE (eV)', 'DP (V)', 'CXP (V)'],           fields: ['polarity', 'collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
+  'PerkinElmer':   { headers: ['Polarity', 'CE (eV)', 'EV (V)', 'CCL2 (V)'],          fields: ['polarity', 'collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
+  'Waters':        { headers: ['Polarity', 'CE (eV)', 'Cone (V)'],                     fields: ['polarity', 'collision_energy_ev', 'cone_voltage'] },
+  'Agilent':       { headers: ['Polarity', 'CE (eV)', 'Frag (V)', 'Cell Acc'],         fields: ['polarity', 'collision_energy_ev', 'declustering_potential', 'cell_accelerator_voltage'] },
+  'Shimadzu':      { headers: ['Polarity', 'CE (eV)', 'Q1 Bias', 'Q3 Bias'],           fields: ['polarity', 'collision_energy_ev', 'q1_pre_bias', 'q3_pre_bias'] },
+  'Thermo Fisher': { headers: ['Polarity', 'CE (eV)', 'RF Lens (V)', 'Resolution', 'Max IT (ms)'], fields: ['polarity', 'collision_energy_ev', 'rf_lens_v', 'ms_resolution', 'max_inject_time_ms'] },
+  'Bruker':        { headers: ['Polarity', 'CE (eV)'],                     fields: ['polarity', 'collision_energy_ev'] },
+  'Other':         { headers: ['Polarity', 'CE (eV)', 'DP (V)'],           fields: ['polarity', 'collision_energy_ev', 'declustering_potential'] },
 }
 
 const NR = () => <span style={{color:'#d1d5db',fontSize:'0.7rem'}}>N/R</span>
@@ -241,6 +247,7 @@ export default function MethodDetail() {
           retention_time_min: t.retention_time_min ? parseFloat(t.retention_time_min) : null,
           dwell_time_ms: t.dwell_time_ms ? parseFloat(t.dwell_time_ms) : null,
           is_quantifier: t.is_quantifier !== undefined ? t.is_quantifier : 1,
+          polarity: t.polarity || 'ESI+',
         }))
       await axios.put(`${API}/methods/${id}/transitions`, { transitions: cleanTrans })
       await axios.put(`${API}/methods/${id}/validation`, { items: validation.filter((v:any)=>v.compound_name) })
@@ -749,11 +756,11 @@ export default function MethodDetail() {
                   />
                   
                   <div style={{display:'flex',gap:'0.5rem'}}>
-                    <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:0,precursor_mz:'',product_mz:'',is_quantifier:1}])}
+                    <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:0,precursor_mz:'',product_mz:'',is_quantifier:1,polarity:'ESI+'}])}
                       style={{padding:'0.3rem 0.8rem',border:'1px solid #1d4ed8',borderRadius:'0.4rem',background:'white',color:'#1d4ed8',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Add Transition
                     </button>
-                    <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:1,precursor_mz:'',product_mz:'',is_quantifier:1}])}
+                    <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:1,precursor_mz:'',product_mz:'',is_quantifier:1,polarity:'ESI+'}])}
                       style={{padding:'0.3rem 0.8rem',border:'1px solid #7c3aed',borderRadius:'0.4rem',background:'#f3e8ff',color:'#7c3aed',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Add IS
                     </button>

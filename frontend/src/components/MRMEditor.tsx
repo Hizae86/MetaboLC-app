@@ -1,44 +1,36 @@
 import { useState, useRef, useEffect } from 'react'
 
-interface MRMRow {
-  compound_name: string
-  is_internal_standard: number
-  is_quantifier: number
-  precursor_mz: string
-  product_mz: string
-  collision_energy_ev: string
-  retention_time_min: string
-  dwell_time_ms: string
-  [key: string]: any
-}
-
 interface MFRParam { headers: string[]; fields: string[] }
+interface Trans { [key: string]: any }
 
 interface Props {
-  trans: MRMRow[]
-  setTrans: (t: MRMRow[]) => void
+  trans: Trans[]
+  setTrans: (t: Trans[]) => void
   mfrParams: MFRParam
-  IS?: React.CSSProperties
+  IS?: any
 }
 
-const ALL_BASE = ['compound_name', 'is_internal_standard', 'is_quantifier',
-  'precursor_mz', 'product_mz'] as const
-
-export default function MRMEditor({ trans, setTrans, mfrParams, IS }: Props) {
+export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
   const [active, setActive] = useState<{ r: number; c: number } | null>(null)
   const [fillMenu, setFillMenu] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const allCols = [
-    { field: 'compound_name', label: 'Compound', numeric: false, width: 140 },
-    { field: 'is_internal_standard', label: 'IS', numeric: false, width: 50 },
-    { field: 'is_quantifier', label: 'Role', numeric: false, width: 80 },
-    { field: 'precursor_mz', label: 'Q1 (m/z)', numeric: true, width: 80 },
-    { field: 'product_mz', label: 'Q3 (m/z)', numeric: true, width: 80 },
-    ...(mfrParams?.fields || []).map((field, i) => ({ field, label: mfrParams.headers[i] || field, numeric: true, width: 80 })),
-    { field: 'retention_time_min', label: 'RT (min)', numeric: true, width: 75 },
-    { field: 'dwell_time_ms', label: 'Dwell (ms)', numeric: true, width: 75 },
-    { field: 'derivative', label: 'Derivative', numeric: false, width: 90 },
+  const mfrFields = mfrParams?.fields || []
+  const mfrHeaders = mfrParams?.headers || []
+
+  // Fixed columns (excluding compound_name which is shown in group header)
+  const dataCols = [
+    { field: 'is_quantifier', label: 'Role', width: 64 },
+    { field: 'polarity', label: 'Pol.', width: 56 },
+    { field: 'precursor_mz', label: 'Q1 (m/z)', width: 82, numeric: true },
+    { field: 'product_mz', label: 'Q3 (m/z)', width: 82, numeric: true },
+    ...mfrFields.filter(f => f !== 'polarity').map((f, i) => ({
+      field: f, label: mfrHeaders[i + (mfrHeaders.includes('Polarity') ? 1 : 0)] || f,
+      width: 72, numeric: f !== 'polarity'
+    })),
+    { field: 'assigned_is', label: 'Assigned IS', width: 120, numeric: false },
+    { field: 'retention_time_min', label: 'RT (min)', width: 72, numeric: true },
+    { field: 'dwell_time_ms', label: 'Dwell (ms)', width: 72, numeric: true },
   ]
 
   useEffect(() => {
@@ -64,7 +56,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams, IS }: Props) {
 
   const move = (r: number, c: number, dr: number, dc: number) => {
     const nr = Math.max(0, Math.min(trans.length - 1, r + dr))
-    const nc = Math.max(0, Math.min(allCols.length - 1, c + dc))
+    const nc = Math.max(0, Math.min(dataCols.length - 1, c + dc))
     setActive({ r: nr, c: nc })
   }
 
@@ -77,169 +69,224 @@ export default function MRMEditor({ trans, setTrans, mfrParams, IS }: Props) {
   }
 
   const handlePaste = (e: React.ClipboardEvent, startRow: number, startCol: number) => {
+    e.preventDefault()
     const text = e.clipboardData.getData('text')
     const rows = text.trim().split('\n').map(r => r.split('\t'))
-    const s = [...trans]
+    const newTrans = [...trans]
     rows.forEach((row, ri) => {
-      const tr = startRow + ri
-      if (tr >= s.length) return
-      row.forEach((cell, ci) => {
-        const tc = startCol + ci
-        if (tc >= allCols.length) return
-        s[tr] = { ...s[tr], [allCols[tc].field]: cell.trim() }
+      const targetRow = startRow + ri
+      if (targetRow >= newTrans.length) return
+      row.forEach((val, ci) => {
+        const targetCol = startCol + ci
+        if (targetCol >= dataCols.length) return
+        const field = dataCols[targetCol].field
+        newTrans[targetRow] = { ...newTrans[targetRow], [field]: val }
       })
     })
-    setTrans(s)
-    e.preventDefault()
+    setTrans(newTrans)
   }
 
-  const isActive = (r: number, c: number) => active?.r === r && active?.c === c
-
-  const renderCell = (row: number, col: number, field: string, numeric: boolean) => {
-    const t = trans[row]
-    const act = isActive(row, col)
-
-    // Special cells
-    if (field === 'is_internal_standard') {
-      return (
-        <div className="flex justify-center items-center h-full">
-          <input type="checkbox"
-            checked={!!t.is_internal_standard}
-            onChange={e => update(row, field, e.target.checked ? 1 : 0)}
-            className="w-3.5 h-3.5 accent-purple-600" />
-        </div>
-      )
+  // Group transitions by compound name
+  type Group = { name: string; isIS: boolean; rows: { t: Trans; idx: number }[] }
+  const groups: Group[] = []
+  trans.forEach((t, idx) => {
+    const name = t.compound_name?.trim() || ''
+    const last = groups[groups.length - 1]
+    if (last && last.name === name) {
+      last.rows.push({ t, idx })
+    } else {
+      groups.push({ name, isIS: !!t.is_internal_standard, rows: [{ t, idx }] })
     }
+  })
+
+  const renderDataCell = (rowIdx: number, colIdx: number, field: string, numeric: boolean) => {
+    const t = trans[rowIdx]
+    const isAct = active?.r === rowIdx && active?.c === colIdx
+    const val = t[field] ?? ''
 
     if (field === 'is_quantifier') {
       return (
-        <div className="flex justify-center">
-          <button
-            onClick={() => update(row, field, t.is_quantifier ? 0 : 1)}
-            className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors
-              ${t.is_quantifier
-                ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
-                : 'bg-orange-50 text-orange-600 ring-1 ring-orange-200'}`}>
-            {t.is_quantifier ? 'Quant' : 'Qual'}
-          </button>
-        </div>
+        <button onClick={() => update(rowIdx, field, t.is_quantifier ? 0 : 1)}
+          className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-all
+            ${t.is_quantifier
+              ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+              : 'bg-orange-50 text-orange-600 ring-1 ring-orange-200'}`}>
+          {t.is_quantifier ? 'Quan' : 'Qual'}
+        </button>
       )
     }
 
-    const val = t[field] ?? ''
-    const displayVal = val === '' || val === null || val === undefined
-      ? <span className="text-slate-300">—</span>
-      : <span>{val}</span>
+    if (field === 'assigned_is') {
+      const isCompounds = [...new Set(trans
+        .filter((t: any) => t.is_internal_standard)
+        .map((t: any) => t.compound_name?.trim())
+        .filter(Boolean))] as string[]
+      if (isCompounds.length === 0) return (
+        <div className="px-2 py-1 text-xs text-slate-300">No IS</div>
+      )
+      const t = trans[rowIdx]
+      if (t.is_internal_standard) return null
 
-    if (act) return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={val}
-        onChange={e => update(row, field, e.target.value)}
+      // Auto-detect IS by name similarity
+      const compoundName = (t.compound_name || '').toLowerCase().trim()
+      const autoIS = isCompounds.find((name: string) => {
+        const n = name.toLowerCase()
+        // Strip isotope labels: -d3, -d6, -13C3, -2H5, etc.
+        const stripped = n.replace(/[-_]?(d\d+|\d*13c\d*|\d*15n\d*|\d*2h\d*|13c\d*|d\d+)/gi, '').replace(/[-_]+$/, '').trim()
+        return stripped === compoundName || n.startsWith(compoundName)
+      }) || ''
+
+      const currentVal = t.assigned_is || autoIS
+
+      return (
+        <select
+          value={currentVal}
+          onChange={e => update(rowIdx, 'assigned_is', e.target.value || null)}
+          className="w-full text-xs px-1.5 py-1 border border-slate-200 rounded bg-white
+            focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700">
+          <option value="">— none —</option>
+          {isCompounds.map((name: string) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      )
+    }
+
+    if (field === 'polarity') {
+      return (
+        <button onClick={() => update(rowIdx, field, (t.polarity || 'ESI+') === 'ESI+' ? 'ESI-' : 'ESI+')}
+          className={`text-xs font-medium px-1.5 py-0.5 rounded transition-all
+            ${(t.polarity || 'ESI+') === 'ESI+'
+              ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200'
+              : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
+          {t.polarity || 'ESI+'}
+        </button>
+      )
+    }
+
+    if (isAct) return (
+      <input ref={inputRef} type="text" value={val}
+        onChange={e => update(rowIdx, field, e.target.value)}
         onBlur={() => setActive(null)}
-        onKeyDown={e => handleKeyDown(e, row, col)}
-        onPaste={e => handlePaste(e, row, col)}
-        className={`w-full h-full px-2 py-1.5 text-sm outline-none
-          border-2 border-blue-500 rounded bg-blue-50
+        onKeyDown={e => handleKeyDown(e, rowIdx, colIdx)}
+        onPaste={e => handlePaste(e, rowIdx, colIdx)}
+        className={`w-full h-full px-1.5 py-1 text-xs outline-none border-2 border-blue-500 rounded bg-blue-50
           ${numeric ? 'text-right font-mono' : 'text-left'}`}
-        style={{ fontSize: '12px' }}
       />
     )
 
     return (
-      <div
-        onClick={() => setActive({ r: row, c: col })}
-        className={`w-full px-2 py-1.5 cursor-text rounded
-          hover:bg-slate-50 transition-colors select-none
-          ${numeric ? 'text-right font-mono' : 'text-left'}`}
-        style={{ fontSize: '12px', minHeight: '32px' }}>
-        {displayVal}
+      <div onClick={() => setActive({ r: rowIdx, c: colIdx })}
+        className={`px-1.5 py-1 text-xs rounded cursor-text hover:bg-blue-50 transition-colors min-h-[24px]
+          ${numeric ? 'text-right font-mono' : 'text-left'}
+          ${val === '' || val === null ? 'text-slate-300' : 'text-slate-700'}`}>
+        {val === '' || val === null ? '—' : val}
       </div>
     )
   }
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-x-auto mb-3">
-      <table className="border-collapse" style={{ minWidth: '900px', width: '100%' }}>
-        <thead>
-          <tr className="bg-slate-900">
-            {allCols.map((col, ci) => (
-              <th key={col.field}
-                className="py-2.5 px-2 text-slate-400 font-medium text-xs
-                  uppercase tracking-wider whitespace-nowrap relative"
-                style={{ minWidth: col.width, textAlign: col.numeric ? 'right' : 'left' }}>
-                <div className={`flex items-center gap-1 ${col.numeric ? 'justify-end' : ''}`}>
-                  <span>{col.label}</span>
-                  {col.numeric && (
-                    <div className="relative" onMouseDown={e => e.stopPropagation()}>
-                      <button
-                        onClick={e => { e.stopPropagation(); setFillMenu(fillMenu === col.field ? null : col.field) }}
-                        className="text-slate-600 hover:text-white hover:bg-slate-700
-                          rounded px-1 transition-colors text-xs leading-none">
-                        ⋮
-                      </button>
-                      {fillMenu === col.field && (
-                        <div className="absolute right-0 top-6 z-50 bg-white border border-slate-200
-                          rounded-lg shadow-lg py-1 min-w-[130px]"
-                          onMouseDown={e => e.stopPropagation()}>
-                          <p className="px-3 py-1 text-xs text-slate-400 font-medium uppercase tracking-wider">
-                            Fill column
-                          </p>
-                          {['0', '10', '15', '20', '25', '30', '40'].map(val => (
-                            <button key={val}
-                              className="w-full text-left px-3 py-1.5 text-sm text-slate-700
-                                hover:bg-slate-50 font-mono"
-                              onClick={() => fillColumn(col.field, val)}>
-                              {val}
-                            </button>
-                          ))}
-                          <div className="border-t border-slate-100 mt-1 pt-1">
-                            <button
-                              className="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                              onClick={() => {
-                                const val = prompt(`Fill all ${col.label} with:`)
-                                if (val !== null) fillColumn(col.field, val)
-                              }}>
-                              Custom value…
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      {/* Scrollable container */}
+      <div style={{ maxHeight: '420px', overflowY: 'auto', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+
+          {/* Sticky header */}
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 600, fontSize: '11px', minWidth: '140px', whiteSpace: 'nowrap' }}>
+                Compound
               </th>
-            ))}
-            <th className="w-8 bg-slate-900" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {trans.map((t, i) => (
-            <tr key={i}
-              className={`${t.is_internal_standard ? 'bg-purple-50/40' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
-              style={{ height: '36px' }}>
-              {allCols.map((col, ci) => (
-                <td key={col.field} className="p-0.5">
-                  {renderCell(i, ci, col.field, col.numeric)}
-                </td>
+              {dataCols.map(col => (
+                <th key={col.field}
+                  style={{ textAlign: col.field === 'is_quantifier' || col.field === 'polarity' ? 'center' : 'right', padding: '8px 6px', color: '#64748b', fontWeight: 600, fontSize: '11px', minWidth: col.width, whiteSpace: 'nowrap' }}>
+                  <div className="flex items-center justify-end gap-1">
+                    {col.label}
+                    {col.field !== 'is_quantifier' && col.field !== 'polarity' && (
+                      <div className="relative">
+                        <button onClick={() => setFillMenu(fillMenu === col.field ? null : col.field)}
+                          className="text-slate-300 hover:text-indigo-500 transition-colors text-xs">▼</button>
+                        {fillMenu === col.field && (
+                          <div className="absolute right-0 top-5 bg-white border border-slate-200 rounded-lg shadow-lg z-20 w-36 p-1">
+                            <p className="text-xs text-slate-400 px-2 py-1">Fill all with:</p>
+                            <input autoFocus className="w-full text-xs px-2 py-1 border-b border-slate-100 outline-none"
+                              placeholder="value…"
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') fillColumn(col.field, (e.target as HTMLInputElement).value)
+                                if (e.key === 'Escape') setFillMenu(null)
+                              }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </th>
               ))}
-              <td className="text-center p-0.5 w-8">
-                <button
-                  onClick={() => setTrans(trans.filter((_, idx) => idx !== i))}
-                  className="text-slate-300 hover:text-red-500 transition-colors text-base leading-none px-1">
-                  ×
-                </button>
-              </td>
+              <th style={{ width: 32 }} />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {groups.map((group, gi) => (
+              <>
+                {/* Group separator */}
+                {gi > 0 && (
+                  <tr key={`sep-${gi}`}>
+                    <td colSpan={dataCols.length + 2}
+                      style={{ height: '2px', background: 'linear-gradient(to right, #e2e8f0 60%, transparent)', padding: 0 }} />
+                  </tr>
+                )}
+
+                {group.rows.map(({ t, idx }, ri) => (
+                  <tr key={idx}
+                    style={{ height: '34px', background: group.isIS ? '#faf5ff' : gi % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+
+                    {/* Compound name — only first row of group */}
+                    <td style={{ padding: '4px 12px', verticalAlign: 'middle' }}>
+                      {ri === 0 ? (
+                        <div className="flex items-center gap-2">
+                          {group.isIS ? (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium shrink-0">IS</span>
+                          ) : (
+                            <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium shrink-0">Ana</span>
+                          )}
+                          <input value={t.compound_name || ''}
+                            onChange={e => update(idx, 'compound_name', e.target.value)}
+                            className="text-xs font-medium text-slate-800 bg-transparent border-none outline-none w-full"
+                            placeholder="Compound name" />
+                        </div>
+                      ) : (
+                        <div className="pl-8 text-xs text-slate-300">↳ qualifier</div>
+                      )}
+                    </td>
+
+                    {/* Data cells */}
+                    {dataCols.map((col, ci) => (
+                      <td key={col.field} style={{ padding: '2px 4px', textAlign: col.field === 'is_quantifier' || col.field === 'polarity' ? 'center' : 'right', verticalAlign: 'middle' }}>
+                        {renderDataCell(idx, ci, col.field, !!col.numeric)}
+                      </td>
+                    ))}
+
+                    {/* Delete */}
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '2px' }}>
+                      <button onClick={() => setTrans(trans.filter((_, i) => i !== idx))}
+                        className="text-slate-200 hover:text-red-400 transition-colors text-base leading-none px-1">
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
       <div className="flex gap-4 px-3 py-2 bg-slate-50 border-t border-slate-100 text-xs text-slate-400">
-        <span>Tab / Shift+Tab — next/prev cell</span>
+        <span>Tab / Shift+Tab — next/prev</span>
         <span>Enter / ↑↓ — move rows</span>
-        <span>Esc — exit cell</span>
-        <span>Paste from Excel — Cmd+V</span>
+        <span>Paste TSV from Excel</span>
       </div>
     </div>
   )
