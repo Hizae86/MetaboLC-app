@@ -75,37 +75,31 @@ export default function Contributors() {
         </p>
       </div>
 
-      {/* Podium */}
+      {/* Podium — compact */}
       {!loading && contributors.length >= 3 && (
-        <div className="flex items-end justify-center gap-3 mb-10 px-4">
-          {PODIUM_STYLES.map((style, i) => {
-            const c = top3[i]
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[contributors[1], contributors[0], contributors[2]].map((c, i) => {
             if (!c) return null
+            const rank = i === 0 ? 2 : i === 1 ? 1 : 3
+            const medal = ['🥈','🥇','🥉'][i]
+            const isFirst = rank === 1
             return (
-              <div key={i} className={`flex-1 flex flex-col items-center ${style.order}`}>
-                {/* Medal badge */}
-                <div className="text-2xl mb-2">{style.badge}</div>
-
-                {/* Avatar */}
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center
-                  text-xl font-bold mb-2 ring-4 ring-white shadow-lg ${style.avatarBg}`}>
+              <div key={c.name}
+                className={`flex flex-col items-center p-3 rounded-xl border transition-all
+                  ${isFirst
+                    ? 'bg-amber-50 border-amber-200 shadow-sm'
+                    : 'bg-white border-slate-200'}`}>
+                <span className="text-xl mb-1">{medal}</span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center
+                  text-sm font-bold mb-1.5
+                  ${isFirst ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
                   {getInitial(c.name)}
                 </div>
-
-                {/* Name */}
-                <p className="text-xs font-semibold text-slate-800 text-center leading-tight mb-1 px-1">
-                  {c.name.replace(/^(Dr\.|Prof\.)\s+/i, '')}
+                <p className={`text-xs font-semibold text-center truncate w-full
+                  ${isFirst ? 'text-amber-900' : 'text-slate-700'}`}>
+                  {c.name.split(' ').slice(0,2).join(' ')}
                 </p>
-
-                {/* Podium block */}
-                <div className={`w-full ${style.height} rounded-t-xl bg-gradient-to-b ${style.bg}
-                  flex flex-col items-center justify-center shadow-md mt-2`}>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full mb-1 ${style.badgeBg}`}>
-                    #{style.rank}
-                  </span>
-                  <span className="text-white font-bold text-lg">{c.method_count}</span>
-                  <span className="text-white/80 text-xs">methods</span>
-                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{c.method_count} methods</p>
               </div>
             )
           })}

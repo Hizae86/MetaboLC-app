@@ -4,13 +4,14 @@ import axios from 'axios'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
-const MANUFACTURERS = ['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker', 'Other']
+const MANUFACTURERS = ['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker', 'PerkinElmer', 'Other']
 const INSTRUMENTS: Record<string, string[]> = {
   'Sciex': ['Triple Quad 3500', 'Triple Quad 4500MD', 'Triple Quad 5500+', 'Triple Quad 6500+', 'Triple Quad 7500', 'QTRAP 4500', 'QTRAP 5500', 'QTRAP 6500+', 'ZenoTOF 7600'],
   'Waters': ['Xevo TQ-S', 'Xevo TQ-S micro', 'Xevo TQ-Absolute', 'Xevo TQ-XS', 'Quattro Premier XE'],
   'Thermo Fisher': ['TSQ Quantis', 'TSQ Quantis Plus', 'TSQ Altis', 'TSQ Altis Plus', 'TSQ Fortis', 'TSQ Endura'],
-  'Agilent': ['6470', '6475', '6490', '6495C', '6495D'],
+  'Agilent': ['6470', '6475', '6490', '6495C', '6495D', 'Ultivo LC/TQ', 'InfinityLab LC/TQ'],
   'Shimadzu': ['LCMS-8040', 'LCMS-8050', 'LCMS-8060', 'LCMS-8060NX', 'LCMS-8090'],
+  'PerkinElmer': ['QSight 210', 'QSight 225'],
   'Bruker': ['EVOQ Triple Quad', 'EVOQ Cube', 'EVOQ Elite'],
   'Other': ['Other'],
 }

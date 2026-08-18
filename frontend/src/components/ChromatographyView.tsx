@@ -1,5 +1,185 @@
-import ChromatogramChart from './ChromatogramChart'
 import { useState } from 'react'
+import ChromatogramChart from './ChromatogramChart'
+
+function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: string, phaseB?: string }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
+  const W = 560, H = 140
+  const padL = 44, padR = 16, padT = 12, padB = 32
+
+  const maxTime = Math.max(...steps.map((s: any) => s.time_min))
+
+  const toX = (t: number) => padL + (t / maxTime) * (W - padL - padR)
+  const toY = (pct: number) => padT + (1 - pct / 100) * (H - padT - padB)
+
+  // Build line paths
+  const ptsB = steps.map((s: any) => ({ x: toX(s.time_min), y: toY(s.percent_b), pct: s.percent_b, t: s.time_min }))
+  const ptsA = steps.map((s: any) => ({ x: toX(s.time_min), y: toY(100 - s.percent_b), pct: 100 - s.percent_b, t: s.time_min }))
+
+  const lineB = ptsB.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const lineA = ptsA.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+
+  // Fill only under %B
+  const fillB = `M ${ptsB[0].x.toFixed(1)},${H - padB} ${ptsB.map(p => `L ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} L ${ptsB[ptsB.length-1].x.toFixed(1)},${H-padB} Z`
+
+  // Smart X ticks — avoid overlap
+  const minTickGap = 28 // px
+  const allTicks = steps.map((s: any) => s.time_min)
+  const visibleTicks: number[] = []
+  let lastX = -999
+  allTicks.forEach(t => {
+    const x = toX(t)
+    if (x - lastX >= minTickGap) {
+      visibleTicks.push(t)
+      lastX = x
+    }
+  })
+
+  const yTicks = [0, 25, 50, 75, 100]
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'auto',display:'block'}}>
+        <defs>
+          <linearGradient id="fillB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0.18"/>
+            <stop offset="100%" stopColor="#f97316" stopOpacity="0.02"/>
+          </linearGradient>
+        </defs>
+
+        {/* Y grid */}
+        {yTicks.map(t => (
+          <g key={t}>
+            <line x1={padL} y1={toY(t)} x2={W-padR} y2={toY(t)} stroke="#f1f5f9" strokeWidth="0.8"/>
+            <text x={padL-5} y={toY(t)+3} textAnchor="end" fontSize="8" fill="#94a3b8" fontFamily="monospace">{t}%</text>
+          </g>
+        ))}
+
+        {/* Axes */}
+        <line x1={padL} y1={padT} x2={padL} y2={H-padB} stroke="#e2e8f0" strokeWidth="0.8"/>
+        <line x1={padL} y1={H-padB} x2={W-padR} y2={H-padB} stroke="#e2e8f0" strokeWidth="0.8"/>
+
+        {/* X ticks — smart spacing */}
+        {visibleTicks.map(t => (
+          <g key={t}>
+            <line x1={toX(t)} y1={H-padB} x2={toX(t)} y2={H-padB+3} stroke="#cbd5e1" strokeWidth="0.8"/>
+            <text x={toX(t)} y={H-padB+11} textAnchor="middle" fontSize="8" fill="#94a3b8" fontFamily="monospace">{t}</text>
+          </g>
+        ))}
+
+        {/* X label */}
+        <text x={(W-padL-padR)/2+padL} y={H-1} textAnchor="middle" fontSize="8" fill="#94a3b8">Time (min)</text>
+
+        {/* Hover vertical line */}
+        {hoveredIdx !== null && (
+          <line x1={ptsB[hoveredIdx].x} y1={padT} x2={ptsB[hoveredIdx].x} y2={H-padB}
+            stroke="#94a3b8" strokeWidth="0.8" strokeDasharray="3,2"/>
+        )}
+
+        {/* Fill %B */}
+        <path d={fillB} fill="url(#fillB)"/>
+
+        {/* Line %A */}
+        <path d={lineA} fill="none" stroke="#3b82f6" strokeWidth="1.8"
+          strokeLinejoin="round" strokeLinecap="round"/>
+
+        {/* Line %B */}
+        <path d={lineB} fill="none" stroke="#f97316" strokeWidth="1.8"
+          strokeLinejoin="round" strokeLinecap="round"/>
+
+        {/* Data points */}
+        {ptsB.map((p, i) => (
+          <g key={i} style={{cursor:'pointer'}}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}>
+            {/* Hover target */}
+            <circle cx={p.x} cy={p.y} r="10" fill="transparent"/>
+            {/* %B point */}
+            <circle cx={p.x} cy={p.y} r={hoveredIdx === i ? 4 : 2.5}
+              fill="white" stroke="#f97316" strokeWidth="1.5"
+              style={{transition:'r 0.15s'}}/>
+            {/* %A point */}
+            <circle cx={ptsA[i].x} cy={ptsA[i].y} r={hoveredIdx === i ? 4 : 2.5}
+              fill="white" stroke="#3b82f6" strokeWidth="1.5"
+              style={{transition:'r 0.15s'}}/>
+
+            {/* Tooltip */}
+            {hoveredIdx === i && (
+              <g>
+                <rect x={p.x + 6} y={p.y - 22}
+                  width="80" height="36" rx="4"
+                  fill="white" stroke="#e2e8f0" strokeWidth="0.8"
+                  style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.08))'}}/>
+                <text x={p.x + 10} y={p.y - 10} fontSize="8" fill="#64748b" fontFamily="monospace">
+                  t = {p.t} min
+                </text>
+                <text x={p.x + 10} y={p.y - 1} fontSize="8" fill="#3b82f6" fontFamily="monospace">
+                  %A = {ptsA[i].pct.toFixed(0)}%
+                </text>
+                <text x={p.x + 10} y={p.y + 8} fontSize="8" fill="#f97316" fontFamily="monospace">
+                  %B = {p.pct.toFixed(0)}%
+                </text>
+              </g>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      {/* Legend */}
+      <div style={{display:'flex',gap:'20px',justifyContent:'center',margin:'6px 0 12px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div style={{width:'18px',height:'2px',background:'#3b82f6',borderRadius:'1px'}}/>
+          <span style={{fontSize:'10px',color:'#64748b'}}>%A — {phaseA?.split('+')[0]?.trim() || 'Aqueous'}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div style={{width:'18px',height:'2px',background:'#f97316',borderRadius:'1px'}}/>
+          <span style={{fontSize:'10px',color:'#64748b'}}>%B — {phaseB?.split('+')[0]?.trim() || 'Organic'}</span>
+        </div>
+      </div>
+
+      {/* Synchronized table */}
+      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'11px'}}>
+        <thead>
+          <tr>
+            {['Time (min)','%A','%B','Flow (mL/min)'].map(h => (
+              <th key={h} style={{textAlign:'left',padding:'5px 8px',
+                color:'#94a3b8',fontWeight:'500',borderBottom:'0.5px solid #e5e7eb'}}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {steps.map((step: any, i: number) => (
+            <tr key={i}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{
+                borderBottom:'0.5px solid #f8fafc',
+                background: hoveredIdx === i ? '#fff7ed' : 'transparent',
+                cursor: 'default',
+                transition: 'background 0.15s'
+              }}>
+              <td style={{padding:'5px 8px',fontFamily:'monospace',
+                color: hoveredIdx === i ? '#f97316' : '#334155',fontWeight: hoveredIdx === i ? 600 : 400}}>
+                {step.time_min}
+              </td>
+              <td style={{padding:'5px 8px',fontFamily:'monospace',color:'#3b82f6'}}>
+                {(100-step.percent_b).toFixed(0)}%
+              </td>
+              <td style={{padding:'5px 8px',fontFamily:'monospace',color:'#f97316'}}>
+                {step.percent_b}%
+              </td>
+              <td style={{padding:'5px 8px',fontFamily:'monospace',color:'#64748b'}}>
+                {step.flow_rate_ml_min ?? '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export default function ChromatographyView({ method }: { method: any }) {
   const [nSamples, setNSamples] = useState(50)
@@ -171,40 +351,8 @@ export default function ChromatographyView({ method }: { method: any }) {
         <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
           <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
             color:'#9ca3af',marginBottom:'12px'}}>Gradient program</p>
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px',tableLayout:'fixed'}}>
-              <thead>
-                <tr>
-                  {['Time (min)','%A','%B','Composition','Flow (mL/min)'].map(h => (
-                    <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:'11px',
-                      fontWeight:'500',color:'#6b7280',borderBottom:'0.5px solid #e5e7eb'}}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {method.gradient_steps.map((step: any, i: number) => {
-                  const pctB = step.percent_b
-                  const pctA = 100 - pctB
-                  return (
-                    <tr key={i} style={{borderBottom:'0.5px solid #f3f4f6'}}>
-                      <td style={{padding:'7px 8px',fontFamily:'monospace'}}>{step.time_min}</td>
-                      <td style={{padding:'7px 8px',fontFamily:'monospace'}}>{pctA.toFixed(0)}%</td>
-                      <td style={{padding:'7px 8px',fontFamily:'monospace'}}>{pctB}%</td>
-                      <td style={{padding:'7px 8px'}}>
-                        <div style={{display:'flex',height:'6px',borderRadius:'3px',overflow:'hidden',width:'60px'}}>
-                          <div style={{width:`${pctA * 0.6}px`,background:'#85B7EB'}} />
-                          <div style={{width:`${pctB * 0.6}px`,background:'#EF9F27'}} />
-                        </div>
-                      </td>
-                      <td style={{padding:'7px 8px',fontFamily:'monospace'}}>{step.flow_rate_ml_min ?? '—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+
+          <GradientChart steps={method.gradient_steps} phaseA={method.mobile_phase_a} phaseB={method.mobile_phase_b} />
         </div>
       )}
 

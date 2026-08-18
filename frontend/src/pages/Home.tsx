@@ -143,7 +143,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.4 }}
             style={{fontSize:'16px', color:'#94a3b8', marginBottom:'2.5rem', lineHeight:'1.6'}}>
-            The open repository of validated clinical LC-MS/MS methods
+            The open reference library of clinical LC-MS/MS methods
           </motion.p>
 
           {/* KPI row */}

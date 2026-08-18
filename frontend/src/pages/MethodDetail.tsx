@@ -42,7 +42,7 @@ const INSTRUMENTS: Record<string, string[]> = {
     'Orbitrap Astral', 'Orbitrap Fusion Lumos', 'Other'
   ],
   'Agilent': [
-    '6410', '6420', '6430', '6460', '6470', '6475', '6490', '6495C', '6495D',
+    '6410', '6420', '6430', '6460', '6470', '6475', '6490', '6495C', '6495D', 'Ultivo LC/TQ', 'InfinityLab LC/TQ',
     '6545', '6546', '6560 Ion Mobility Q-TOF', 'Other'
   ],
   'Shimadzu': [
@@ -57,7 +57,7 @@ const INSTRUMENTS: Record<string, string[]> = {
   'Other': ['Other']
 }
 
-const MANUFACTURERS = ['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker', 'Other']
+const MANUFACTURERS = ['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker', 'PerkinElmer', 'Other']
 
 const MS_SOURCE_PARAMS: Record<string, {label: string, field: string, unit: string}[]> = {
   'Sciex': [
@@ -85,8 +85,14 @@ const MS_SOURCE_PARAMS: Record<string, {label: string, field: string, unit: stri
     {label: 'DL Temperature', field: 'dl_temperature', unit: '°C'},
     {label: 'Interface Temperature', field: 'interface_temperature', unit: '°C'},
     {label: 'Nebulizing Gas', field: 'nebulizing_gas', unit: 'L/min'},
-    {label: 'Drying Gas', field: 'drying_gas', unit: 'L/min'},
     {label: 'Heat Block', field: 'heat_block_temperature', unit: '°C'},
+  ],
+  'PerkinElmer': [
+    {label: 'Drying Gas', field: 'gas1', unit: 'L/min'},
+    {label: 'HSID Temperature', field: 'source_temperature_c', unit: '°C'},
+    {label: 'Nebulizer Gas 1', field: 'gas2', unit: ''},
+    {label: 'ElectroSpray Voltage', field: 'ion_spray_voltage', unit: 'V'},
+    {label: 'Source Temperature', field: 'capillary_voltage_pos_v', unit: '°C'},
   ],
   'Agilent': [
     {label: 'Capillary Voltage ESI+', field: 'capillary_voltage_pos_v', unit: 'V'},
@@ -119,6 +125,7 @@ const MS_SOURCE_PARAMS: Record<string, {label: string, field: string, unit: stri
 
 const MFR_PARAMS: Record<string, {headers: string[], fields: string[]}> = {
   'Sciex':         { headers: ['CE (eV)', 'DP (V)', 'CXP (V)'],           fields: ['collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
+  'PerkinElmer':   { headers: ['CE (eV)', 'EV (V)', 'CCL2 (V)'],          fields: ['collision_energy_ev', 'declustering_potential', 'cell_exit_potential'] },
   'Waters':        { headers: ['CE (eV)', 'Cone (V)'],                     fields: ['collision_energy_ev', 'cone_voltage'] },
   'Agilent':       { headers: ['CE (eV)', 'Frag (V)', 'Cell Acc'],         fields: ['collision_energy_ev', 'declustering_potential', 'cell_accelerator_voltage'] },
   'Shimadzu':      { headers: ['CE (eV)', 'Q1 Bias', 'Q3 Bias'],           fields: ['collision_energy_ev', 'q1_pre_bias', 'q3_pre_bias'] },
@@ -131,7 +138,18 @@ const NR = () => <span style={{color:'#d1d5db',fontSize:'0.7rem'}}>N/R</span>
 
 const val = (v: any) => v !== null && v !== undefined ? v : <NR />
 
+const SUPERUSER_PASSWORD = 'metabolc2024'
+
 export default function MethodDetail() {
+  const [isSuperUser, setIsSuperUser] = useState(false)
+  const handleSuperUserLogin = () => {
+    const pwd = window.prompt('Enter superuser password:')
+    if (pwd === SUPERUSER_PASSWORD) {
+      setIsSuperUser(true)
+    } else if (pwd !== null) {
+      window.alert('Incorrect password')
+    }
+  }
   const { id } = useParams()
   const [method, setMethod] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -371,15 +389,24 @@ export default function MethodDetail() {
 
           {/* Action buttons — horizontal row */}
           <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
-            <button onClick={() => { setEf(method); setGrad([...method.gradient_steps]); setTrans([...method.mrm_transitions]); setEditing(true); setEditTab('basic') }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 transition-all">
-              <Pencil size={12} /> Edit
-            </button>
-            <button onClick={handleVerify}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all
-                ${method.status==='verified' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-              {method.status==='verified' ? <><CheckCircle size={12} /> Verified</> : <><Circle size={12} /> Mark verified</>}
-            </button>
+            {isSuperUser ? (
+              <>
+                <button onClick={() => { setEf(method); setGrad([...method.gradient_steps]); setTrans([...method.mrm_transitions]); setEditing(true); setEditTab('basic') }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 transition-all">
+                  <Pencil size={12} /> Edit
+                </button>
+                <button onClick={handleVerify}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all
+                    ${method.status==='verified' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                  {method.status==='verified' ? <><CheckCircle size={12} /> Verified</> : <><Circle size={12} /> Mark verified</>}
+                </button>
+              </>
+            ) : (
+              <button onClick={handleSuperUserLogin}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-all">
+                🔐 Superuser login
+              </button>
+            )}
             {method.mrm_transitions.length > 0 && (
               <button onClick={exportMRM}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all">
@@ -404,10 +431,16 @@ export default function MethodDetail() {
                 <FileSpreadsheet size={12} /> .csv (MassLynx)
               </a>
             )}
-            <button onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-all ml-auto">
-              <Trash2 size={12} /> Delete
-            </button>
+            <a href={`mailto:hello@metabolc.io?subject=Error report: ${method.title}&body=Method ID: ${method.id}%0AError: `}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-100 bg-orange-50 text-orange-600 hover:bg-orange-100 transition-all no-underline ml-auto">
+              ⚠️ Report error
+            </a>
+            {isSuperUser && (
+              <button onClick={handleDelete}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-all">
+                <Trash2 size={12} /> Delete
+              </button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -506,7 +539,7 @@ export default function MethodDetail() {
               {label:'Source Temperature', field:'source_temperature_c', unit:'°C'},
             ]
             const hasAny = params.some(p => method[p.field] !== null && method[p.field] !== undefined)
-            if (!hasAny) return <button onClick={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true)}} style={{color:'#1d4ed8',fontSize:'0.875rem',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>+ Add MS source parameters</button>
+            if (!hasAny) return <p style={{fontSize:'0.8rem',color:'#9ca3af'}}>No MS source parameters recorded. Click Edit to add them.</p>
             return (
               <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
                 {params.map(p => {
@@ -733,6 +766,7 @@ export default function MethodDetail() {
                   const isPolarity = (ef.ionization_mode||method.ionization_mode)?.includes('polarity') ||
                     (ef.ionization_mode||method.ionization_mode)?.includes('+/-')
                   const mfr = ef.instrument_manufacturer || method.instrument_manufacturer
+                  console.log('MS Source mfr:', mfr, 'params:', MS_SOURCE_PARAMS[mfr])
                   let params: any[] = MS_SOURCE_PARAMS[mfr] || [
                     {label:'Capillary Voltage', field:'capillary_voltage_v', unit:'V'},
                     {label:'Source Temperature', field:'source_temperature_c', unit:'°C'},
@@ -1036,5 +1070,6 @@ function F({ label, value }: { label: string; value: any }) {
       <p style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'0.2rem'}}>{label}</p>
       <p style={{fontSize:'0.875rem',fontWeight:'500',color:'#111827'}}>{value}</p>
     </div>
+
   )
 }

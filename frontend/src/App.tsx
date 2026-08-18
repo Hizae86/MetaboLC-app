@@ -6,7 +6,6 @@ import MethodDetail from './pages/MethodDetail'
 import SubmitMethod from './pages/SubmitMethod'
 import CompoundIndex from './pages/CompoundIndex'
 import MethodAdvisor from './pages/MethodAdvisor'
-import DraMassaFAB from './components/DraMassaFAB'
 import MethodsStats from './pages/MethodsStats'
 import CountryStats from './pages/CountryStats'
 import Contributors from './pages/Contributors'
@@ -14,6 +13,8 @@ import SOPGenerator from './pages/SOPGenerator'
 import MethodTransfer from './pages/MethodTransfer'
 import MassCalculator from './pages/MassCalculator'
 import DilutionCalculator from './pages/DilutionCalculator'
+import MatrixEffectCalculator from './pages/MatrixEffectCalculator'
+import RetentionTimePredictor from './pages/RetentionTimePredictor'
 
 function App() {
   return (
@@ -35,8 +36,9 @@ function App() {
             <Route path="/tools/method-transfer" element={<MethodTransfer />} />
             <Route path="/tools/mass-calculator" element={<MassCalculator />} />
             <Route path="/tools/dilution-calculator" element={<DilutionCalculator />} />
+            <Route path="/tools/matrix-effect" element={<MatrixEffectCalculator />} />
+            <Route path="/tools/rt-predictor" element={<RetentionTimePredictor />} />
           </Routes>
-          <DraMassaFAB />
         </main>
       </div>
     </Router>

@@ -38,6 +38,11 @@ export default function Methods() {
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [matrixFilter, setMatrixFilter] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [samplePrepFilter, setSamplePrepFilter] = useState('')
+  const [vendorFilter, setVendorFilter] = useState('')
+  const [lloqFilter, setLloqFilter] = useState('')
+  const [runtimeFilter, setRuntimeFilter] = useState('')
   const [page, setPage] = useState(20)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -53,7 +58,10 @@ export default function Methods() {
     const matchSearch = !q || [m.analyte, m.title, m.matrix, m.instrument_manufacturer,
       m.column_name, m.clinical_application].some(f => f?.toLowerCase().includes(q))
     const matchMatrix = !matrixFilter || m.matrix?.toLowerCase() === matrixFilter
-    return matchSearch && matchMatrix
+    const matchVendor = !vendorFilter || m.instrument_manufacturer?.toLowerCase() === vendorFilter.toLowerCase()
+    const matchPrep = !samplePrepFilter || m.sample_prep_method?.toLowerCase().includes(samplePrepFilter.toLowerCase())
+    const matchLloq = !lloqFilter || (m.lloq && m.lloq <= parseFloat(lloqFilter))
+    return matchSearch && matchMatrix && matchVendor && matchPrep && matchLloq
   })
 
   return (
@@ -97,6 +105,90 @@ export default function Methods() {
 
       {/* Trending - only when no filters active */}
       {!search && !matrixFilter && <TrendingCarousel />}
+
+      {/* Advanced search toggle */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => setShowAdvanced(s => !s)}
+          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
+            border transition-all ${showAdvanced
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+          <SlidersHorizontal size={12} />
+          Advanced filters
+          {(vendorFilter || samplePrepFilter || lloqFilter) && (
+            <span className="bg-indigo-600 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">
+              {[vendorFilter, samplePrepFilter, lloqFilter].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+        {(vendorFilter || samplePrepFilter || lloqFilter || matrixFilter) && (
+          <button onClick={() => {
+            setVendorFilter(''); setSamplePrepFilter('');
+            setLloqFilter(''); setMatrixFilter('')
+          }}
+            className="text-xs text-red-500 hover:text-red-700 transition-colors">
+            Clear all filters
+          </button>
+        )}
+      </div>
+
+      {showAdvanced && (
+        <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Vendor */}
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Instrument</label>
+            <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
+                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
+              <option value="">Any vendor</option>
+              {['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker'].map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sample prep */}
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Sample prep</label>
+            <select value={samplePrepFilter} onChange={e => setSamplePrepFilter(e.target.value)}
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
+                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
+              <option value="">Any prep</option>
+              {['Protein precipitation', 'SPE', 'LLE', 'Dilute and shoot', 'Supported LLE', 'DBS extraction'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* LLOQ */}
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Max LLOQ (ng/mL)</label>
+            <select value={lloqFilter} onChange={e => setLloqFilter(e.target.value)}
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
+                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
+              <option value="">Any LLOQ</option>
+              <option value="0.01">≤ 0.01 ng/mL</option>
+              <option value="0.1">≤ 0.1 ng/mL</option>
+              <option value="1">≤ 1 ng/mL</option>
+              <option value="10">≤ 10 ng/mL</option>
+              <option value="100">≤ 100 ng/mL</option>
+            </select>
+          </div>
+
+          {/* Matrix */}
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Matrix</label>
+            <select value={matrixFilter} onChange={e => setMatrixFilter(e.target.value)}
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
+                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
+              <option value="">Any matrix</option>
+              {['plasma', 'serum', 'urine', 'whole blood', 'dried blood spot', 'csf', 'saliva'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Matrix filter pills */}
       <div className="flex gap-2 flex-wrap">

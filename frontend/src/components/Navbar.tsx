@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, FlaskConical, Users, Sparkles, Plus, Calculator, ArrowRight, ChevronDown } from 'lucide-react'
+import { BookOpen, FlaskConical, Users, Sparkles, Plus, Calculator, ArrowRight, ChevronDown, Clock } from 'lucide-react'
 
 function ToolsDropdown({ active }: { active: boolean }) {
   const [open, setOpen] = useState(false)
@@ -52,13 +52,37 @@ function ToolsDropdown({ active }: { active: boolean }) {
               <Link to="/tools/dilution-calculator"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                  hover:bg-teal-50 hover:text-teal-700 transition-colors no-underline">
+                  hover:bg-teal-50 hover:text-teal-700 transition-colors no-underline border-b border-slate-50">
                 <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
                   <FlaskConical size={13} className="text-teal-600" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold">Dilution Calculator</p>
                   <p className="text-xs text-slate-400">QC & calibrator preparation</p>
+                </div>
+              </Link>
+              <Link to="/tools/matrix-effect"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
+                  hover:bg-orange-50 hover:text-orange-700 transition-colors no-underline border-b border-slate-50">
+                <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                  <span className="text-sm">⚗️</span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">Matrix Effect & Recovery</p>
+                  <p className="text-xs text-slate-400">Ion suppression & extraction efficiency</p>
+                </div>
+              </Link>
+              <Link to="/tools/rt-predictor"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
+                  hover:bg-indigo-50 hover:text-indigo-700 transition-colors no-underline">
+                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                  <Clock size={13} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">RT Predictor</p>
+                  <p className="text-xs text-slate-400">logP & gradient estimate</p>
                 </div>
               </Link>
           </div>
@@ -88,11 +112,16 @@ export default function Navbar() {
           <div>
             <div className="flex items-baseline gap-2">
               <span className="font-bold text-slate-900 text-lg tracking-tight">MetaboLC</span>
-              <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5
-                rounded-full border border-indigo-200">beta</span>
+              <span style={{
+                fontSize:'10px', fontWeight:600, letterSpacing:'0.06em',
+                color:'#4f46e5', background:'#eef2ff',
+                padding:'2px 7px', borderRadius:'20px',
+                border:'1px solid #c7d2fe', lineHeight:'1.4',
+                verticalAlign:'middle'
+              }}>BETA</span>
             </div>
             <span className="text-xs text-slate-400 tracking-wide -mt-0.5 block">
-              LC-MS/MS Method Repository
+              LC-MS/MS Method Reference Library
             </span>
           </div>
         </Link>

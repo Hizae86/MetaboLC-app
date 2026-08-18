@@ -106,36 +106,51 @@ export default function CompoundIndex() {
 
               {/* Info */}
               <div className="p-3 flex flex-col flex-1">
-                <p className="text-xs font-semibold text-slate-900 mb-1 leading-snug">
+                {/* Name */}
+                <p className="text-xs font-semibold text-slate-900 leading-snug mb-1 truncate" title={c.name}>
                   {c.name}
                 </p>
 
-                {c.formula && (
-                  <p className="text-xs font-mono text-indigo-600 mb-1">{c.formula}</p>
-                )}
-
-                {c.exact_mass && (
-                  <p className="text-xs text-slate-400 mb-2 font-mono">
-                    {c.exact_mass.toFixed(4)} Da
-                  </p>
-                )}
-
-                {/* Matrix badges */}
-                <div className="flex flex-wrap gap-1 mb-2 flex-1">
-                  {[...new Set(c.methods.map(m => m.matrix?.toLowerCase()))].slice(0, 3).map(matrix => {
-                    const mc = MATRIX_CLS[matrix || 'other'] || MATRIX_CLS.other
-                    return (
-                      <span key={matrix}
-                        className="text-xs px-1.5 py-0.5 rounded-md font-medium"
-                        style={{background: mc.bg, color: mc.text}}>
-                        {matrix}
-                      </span>
-                    )
-                  })}
+                {/* Formula + mass in one line */}
+                <div className="flex items-center gap-1.5 mb-2">
+                  {c.formula && (
+                    <span className="text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                      {c.formula}
+                    </span>
+                  )}
+                  {c.exact_mass && (
+                    <span className="text-xs font-mono text-slate-400">
+                      {c.exact_mass.toFixed(3)}
+                    </span>
+                  )}
                 </div>
 
+                {/* Matrix badges — max 2 + overflow */}
+                {(() => {
+                  const matrices = [...new Set(c.methods.map((m: any) => m.matrix?.toLowerCase()).filter(Boolean))]
+                  const visible = matrices.slice(0, 2)
+                  const extra = matrices.length - 2
+                  return (
+                    <div className="flex items-center gap-1 mb-2 flex-1">
+                      {visible.map((matrix: any) => {
+                        const mc = MATRIX_CLS[matrix] || MATRIX_CLS.other
+                        return (
+                          <span key={matrix}
+                            className="text-xs px-1.5 py-0.5 rounded-md font-medium truncate max-w-[70px]"
+                            style={{background: mc.bg, color: mc.text}} title={matrix}>
+                            {matrix}
+                          </span>
+                        )
+                      })}
+                      {extra > 0 && (
+                        <span className="text-xs text-slate-400 font-medium">+{extra}</span>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
                   <span className="text-xs text-slate-500 font-medium">
                     {c.method_count} method{c.method_count !== 1 ? 's' : ''}
                   </span>
