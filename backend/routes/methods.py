@@ -31,6 +31,7 @@ class MRMTransitionSchema(BaseModel):
     declustering_potential: Optional[float] = None
     cell_exit_potential: Optional[float] = None
     polarity: Optional[str] = 'ESI+'
+    assigned_is: Optional[str] = None
     retention_time_min: Optional[float] = None
     retention_time_window_min: Optional[float] = None
     dwell_time_ms: Optional[float] = None
@@ -267,6 +268,56 @@ def get_compounds(db: Session = Depends(get_db)):
         })
     return result
 
+def calc_completeness(m) -> int:
+    score = 0
+
+    # Identificación (10 pts)
+    if m.title: score += 2
+    if m.analyte: score += 3
+    if m.matrix: score += 3
+    if m.clinical_application: score += 2
+
+    # Cromatografía (20 pts)
+    if m.column_name or m.column_brand: score += 4
+    if m.mobile_phase_a and m.mobile_phase_b: score += 6
+    if m.gradient_steps and len(m.gradient_steps) > 0: score += 6
+    if m.gradient_steps and m.gradient_steps[0].flow_rate_ml_min: score += 4
+
+    # MRM Transitions (20 pts)
+    quant = [t for t in m.mrm_transitions if not t.is_internal_standard and t.is_quantifier]
+    if len(quant) >= 1: score += 8
+    if len(quant) >= 1 and quant[0].collision_energy_ev: score += 6
+    if len(quant) >= 1 and quant[0].retention_time_min: score += 6
+
+    # MS Source (15 pts) — any source param counts
+    source_fields = [m.ion_spray_voltage, m.source_temperature_c, m.gas1, m.gas2,
+                     m.curtain_gas, m.capillary_voltage_pos_v, m.desolvation_temperature_c,
+                     m.capillary_voltage_v, m.capillary_voltage_neg_v, m.cone_gas_flow_lh,
+                     m.desolvation_gas_flow_lh, m.sheath_gas_flow_lmin]
+    filled = sum(1 for f in source_fields if f is not None)
+    if filled >= 1: score += 8
+    if filled >= 3: score += 7
+
+    # Validación (20 pts) — only if compound_validation has data
+    try:
+        validations = list(m.compound_validation) if m.compound_validation else []
+    except:
+        validations = []
+    if validations:
+        if any(getattr(v, 'lloq', None) for v in validations): score += 8
+        if any(getattr(v, 'cv_intra_percent', None) or getattr(v, 'cv_inter_percent', None) or getattr(v, 'cv_percent', None) for v in validations): score += 6
+        if any(getattr(v, 'r2', None) for v in validations): score += 6
+
+    # Sample prep (10 pts)
+    if m.sample_prep_method: score += 4
+    if m.sample_prep_details and len(m.sample_prep_details or '') > 50: score += 6
+
+    # Trazabilidad (5 pts)
+    if m.reference: score += 3
+    if m.laboratory: score += 2
+
+    return min(100, score)
+
 @router.get("/summary")
 def get_methods_summary(db: Session = Depends(get_db)):
     """Lightweight endpoint for method cards - no transitions"""
@@ -287,6 +338,7 @@ def get_methods_summary(db: Session = Depends(get_db)):
         "laboratory": m.laboratory,
         "mrm_count": len(m.mrm_transitions),
         "chromatogram_svg": m.chromatogram_svg,
+        "completeness_score": calc_completeness(m),
     } for m in methods]
 
 @router.get("/trending")
@@ -337,7 +389,22 @@ def get_method(method_id: int, db: Session = Depends(get_db)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
-    return method
+    # Add completeness score to response
+    result = {c.name: getattr(method, c.name) for c in method.__table__.columns}
+    result['completeness_score'] = calc_completeness(method)
+    result['mrm_transitions'] = [
+        {c.name: getattr(t, c.name) for c in t.__table__.columns}
+        for t in method.mrm_transitions
+    ]
+    result['gradient_steps'] = [
+        {c.name: getattr(s, c.name) for c in s.__table__.columns}
+        for s in method.gradient_steps
+    ]
+    result['compound_validation'] = [
+        {c.name: getattr(v, c.name) for c in v.__table__.columns}
+        for v in (method.compound_validation if hasattr(method, 'compound_validation') and method.compound_validation else [])
+    ]
+    return result
 
 @router.post("/", response_model=MethodResponse)
 def create_method(method: MethodCreate, db: Session = Depends(get_db)):

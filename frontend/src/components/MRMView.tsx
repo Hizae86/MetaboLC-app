@@ -57,37 +57,35 @@ export default function MRMView({ method, onExport }: Props) {
     }
   })
 
-  // Match IS to analyte — manual assignment takes priority, then auto by name
-  isGroups.forEach(isGroup => {
-    let matched = false
-
-    // 1. Manual assignment — check if any analyte row has assigned_is matching this IS
-    for (const g of groups) {
-      const hasManualAssignment = g.rows.some((t: any) => t.assigned_is === isGroup.name)
-      if (hasManualAssignment) {
-        g.isCompanions.push(...isGroup.rows)
-        matched = true
-        break
-      }
-    }
-
-    // 2. Auto match by name similarity
-    if (!matched) {
-      const isNameLower = isGroup.name.toLowerCase()
-      for (const g of groups) {
-        const aName = g.name.toLowerCase()
-        if (isNameLower.includes(aName) || aName.includes(isNameLower.replace(/[-_]?(d\d+|13c\d*|15n\d*|2h\d*)/gi, '').trim())) {
+  // Match IS to analyte — one IS can be shared by multiple analytes
+  // Each group gets its own copy of IS companions
+  groups.forEach(g => {
+    // 1. Manual assignment
+    const manualIS = [...new Set(g.rows
+      .map((t: any) => t.assigned_is)
+      .filter(Boolean))]
+    
+    if (manualIS.length > 0) {
+      manualIS.forEach((isName: string) => {
+        const isGroup = isGroups.find(ig => ig.name === isName)
+        if (isGroup && !g.isCompanions.some((c: any) => c.compound_name === isName)) {
           g.isCompanions.push(...isGroup.rows)
-          matched = true
-          break
         }
-      }
-    }
-
-    if (!matched) {
-      groups.push(isGroup)
+      })
+    } else {
+      // 2. Auto match by name similarity
+      const aName = g.name.toLowerCase()
+      isGroups.forEach(isGroup => {
+        const isNameLower = isGroup.name.toLowerCase()
+        const stripped = isNameLower.replace(/[-_]?(d\d+|13c\d*|15n\d*|2h\d*)/gi, '').replace(/[-_]+$/, '').trim()
+        if (stripped === aName || isNameLower.startsWith(aName)) {
+          g.isCompanions.push(...isGroup.rows)
+        }
+      })
     }
   })
+
+
 
   const toggleCollapse = (name: string) => {
     setCollapsed(prev => {

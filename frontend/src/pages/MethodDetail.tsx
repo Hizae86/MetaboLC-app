@@ -14,6 +14,7 @@ import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import ChromatographyView from '../components/ChromatographyView'
 import MRMView from '../components/MRMView'
+import { CompletenessBar } from '../components/CompletenessScore'
 import ValidationView from '../components/ValidationView'
 import ValidationEditor from '../components/ValidationEditor'
 import MRMEditor from '../components/MRMEditor'
@@ -157,6 +158,32 @@ export default function MethodDetail() {
     }
   }
   const { id } = useParams()
+
+  const calcScore = (m: any): number => {
+    if (!m) return 0
+    let score = 0
+    if (m.title) score += 2
+    if (m.analyte) score += 3
+    if (m.matrix) score += 3
+    if (m.clinical_application) score += 2
+    if (m.column_name || m.column_brand) score += 4
+    if (m.mobile_phase_a && m.mobile_phase_b) score += 6
+    if (m.gradient_steps?.length > 0) score += 6
+    if (m.gradient_steps?.[0]?.flow_rate_ml_min) score += 4
+    const quant = (m.mrm_transitions || []).filter((t: any) => !t.is_internal_standard && t.is_quantifier)
+    if (quant.length >= 1) score += 8
+    if (quant[0]?.collision_energy_ev) score += 6
+    if (quant[0]?.retention_time_min) score += 6
+    const srcFields = [m.ion_spray_voltage, m.source_temperature_c, m.gas1, m.gas2, m.curtain_gas]
+    score += Math.min(15, srcFields.filter(Boolean).length * 5)
+    if (m.lloq) score += 8
+    if (m.cv_intra_percent || m.cv_inter_percent) score += 6
+    if (m.sample_prep_method) score += 4
+    if ((m.sample_prep_details || '').length > 50) score += 6
+    if (m.reference) score += 3
+    if (m.laboratory) score += 2
+    return Math.min(100, score)
+  }
   const [method, setMethod] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('chromatography')
@@ -248,6 +275,7 @@ export default function MethodDetail() {
           dwell_time_ms: t.dwell_time_ms ? parseFloat(t.dwell_time_ms) : null,
           is_quantifier: t.is_quantifier !== undefined ? t.is_quantifier : 1,
           polarity: t.polarity || 'ESI+',
+          assigned_is: t.assigned_is || null,
         }))
       await axios.put(`${API}/methods/${id}/transitions`, { transitions: cleanTrans })
       await axios.put(`${API}/methods/${id}/validation`, { items: validation.filter((v:any)=>v.compound_name) })
@@ -393,6 +421,19 @@ export default function MethodDetail() {
               {method.analyte_cas && <span style={{color:'#94a3b8'}}>CAS: {method.analyte_cas}</span>}
             </div>
           </div>
+
+
+          {method && <CompletenessBar method={method} onEditTab={(tab) => {
+            setEf(method)
+            setGrad([...method.gradient_steps])
+            setTrans([...method.mrm_transitions])
+            setEditing(true)
+            setEditTab(tab === 'chromatography' ? 'chromatography' :
+                       tab === 'mrm' ? 'mrm' :
+                       tab === 'ms' ? 'ms' :
+                       tab === 'validation' ? 'validation' :
+                       tab === 'sample' ? 'sample' : 'basic')
+          }} />}
 
           {/* Action buttons — horizontal row */}
           <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
@@ -572,6 +613,7 @@ export default function MethodDetail() {
           <ValidationView
             validation={validation}
             units={ef.validation_units || 'ng/mL'}
+            method={method}
             onEdit={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true);setEditTab('validation')}}
           />
         </div>

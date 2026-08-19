@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, Grid3X3, List } from 'lucide-react'
 import axios from 'axios'
 import TrendingCarousel from '../components/TrendingCarousel'
+import { CompletenesBadge } from '../components/CompletenessScore'
 import ChromatogramChart from '../components/ChromatogramChart'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
@@ -256,9 +257,14 @@ export default function Methods() {
                       <span className={`text-xs px-1.5 py-0.5 rounded-md border font-medium ${vendorCls}`}>
                         {m.instrument_manufacturer}
                       </span>
-                      <span className="text-xs text-slate-400 font-mono">
-                        {m.mrm_count || 0} MRM
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {m.completeness_score !== undefined && (
+                          <CompletenesBadge score={m.completeness_score} />
+                        )}
+                        <span className="text-xs text-slate-400 font-mono">
+                          {m.mrm_count || 0} MRM
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
