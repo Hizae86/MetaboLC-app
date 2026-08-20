@@ -235,13 +235,19 @@ export default function MethodDetail() {
         'gas_flow_lmin','nebulizer_pressure_psi','capillary_voltage_v','source_temperature_c',
         'desolvation_temperature_c','curtain_gas','column_length_mm','column_diameter_mm',
         'column_particle_size_um','column_temperature_c','injection_volume_ul',
-        'lloq','uloq','cv_intra_percent','cv_inter_percent','recovery_percent']
+        'lloq','uloq','cv_intra_percent','cv_inter_percent','recovery_percent',
+        'aux_gas_flow','sweep_gas_flow','ion_transfer_tube_temp_c','vaporizer_temp_c',
+        'sheath_gas_flow_lmin','sheath_gas_heater_c']
       const cleanEf = {...ef}
       numericFields.forEach(f => {
-        if (cleanEf[f] !== undefined && cleanEf[f] !== '') {
-          cleanEf[f] = parseFloat(cleanEf[f]) || null
+        if (cleanEf[f] !== undefined && cleanEf[f] !== '' && cleanEf[f] !== null) {
+          const parsed = parseFloat(cleanEf[f])
+          cleanEf[f] = isNaN(parsed) ? null : parsed
+        } else if (cleanEf[f] === '') {
+          cleanEf[f] = null
         }
       })
+      console.log('Saving MS fields:', {aux: cleanEf.aux_gas_flow, sweep: cleanEf.sweep_gas_flow, ion: cleanEf.ion_transfer_tube_temp_c, vap: cleanEf.vaporizer_temp_c})
       await axios.put(`${API}/methods/${id}`, { ...cleanEf, gradient_steps: [], mrm_transitions: [] })
 
       const cleanGrad = grad
@@ -423,7 +429,7 @@ export default function MethodDetail() {
           </div>
 
 
-          {method && <SectionBadges method={method} />}
+          {method && <SectionBadges method={method} validationStatus={validation.length > 0 ? (validation.some((v:any) => v.lloq || v.loq || v.cv_percent) ? 'complete' : 'partial') : 'missing'} />}
 
           {/* Action buttons — horizontal row */}
           <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">

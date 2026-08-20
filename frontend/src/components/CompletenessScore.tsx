@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 interface Breakdown {
   category: string
@@ -210,7 +210,7 @@ export default function CompletenessScore({ method }: { method: any }) {
 }
 
 // Section badges — replaces the score bar in method header
-export function SectionBadges({ method }: { method: any }) {
+export function SectionBadges({ method, validationStatus }: { method: any; validationStatus?: string }) {
   const sections = [
     {
       key: 'chromatography',
@@ -247,9 +247,11 @@ export function SectionBadges({ method }: { method: any }) {
           method.ion_spray_voltage, method.source_temperature_c, method.gas1,
           method.gas2, method.curtain_gas, method.capillary_voltage_pos_v,
           method.desolvation_temperature_c, method.capillary_voltage_v,
-          method.capillary_voltage_neg_v
+          method.capillary_voltage_neg_v, method.aux_gas_flow, method.sweep_gas_flow,
+          method.sheath_gas_flow_lmin, method.ion_transfer_tube_temp_c,
+          method.vaporizer_temp_c, method.sheath_gas_heater_c
         ]
-        const filled = fields.filter(Boolean).length
+        const filled = fields.filter(f => f !== null && f !== undefined).length
         return filled >= 3 ? 'complete' : filled > 0 ? 'partial' : 'missing'
       },
       tooltip: 'Ion source voltages, gases and temperatures'
@@ -258,15 +260,7 @@ export function SectionBadges({ method }: { method: any }) {
       key: 'validation',
       label: 'Validation',
       icon: '✓',
-      check: () => {
-        const cv = method.compound_validation || []
-        if (cv.length === 0) return 'missing'
-        const hasLLOQ = cv.some((v: any) => v.lloq)
-        const hasCV = cv.some((v: any) => v.cv_intra_percent || v.cv_inter_percent)
-        const hasR2 = cv.some((v: any) => v.r2)
-        const filled = [hasLLOQ, hasCV, hasR2].filter(Boolean).length
-        return filled === 3 ? 'complete' : filled > 0 ? 'partial' : 'missing'
-      },
+      check: () => validationStatus || 'missing',
       tooltip: 'LLOQ, CV% precision and R² linearity per compound'
     },
     {

@@ -276,6 +276,27 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                     </td>
                   </tr>
                 ))}
+                {/* Add transition to this group */}
+                <tr key={`add-${gi}`}>
+                  <td colSpan={dataCols.length + 2} style={{padding: '2px 12px 4px'}}>
+                    <button
+                      onClick={() => {
+                        const lastIdx = group.rows[group.rows.length - 1].idx
+                        const newTrans = [...trans]
+                        newTrans.splice(lastIdx + 1, 0, {
+                          compound_name: group.name,
+                          is_internal_standard: group.isIS ? 1 : 0,
+                          precursor_mz: '', product_mz: '',
+                          is_quantifier: 0,
+                          polarity: group.rows[0]?.t?.polarity || 'ESI+'
+                        })
+                        setTrans(newTrans)
+                      }}
+                      className="text-xs text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1">
+                      <span className="text-base leading-none">+</span> add transition
+                    </button>
+                  </td>
+                </tr>
               </>
             ))}
           </tbody>
