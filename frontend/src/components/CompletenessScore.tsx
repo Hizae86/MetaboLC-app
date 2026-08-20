@@ -208,3 +208,122 @@ export function CompletenessBar({ method, onEditTab }: { method: any; onEditTab?
 export default function CompletenessScore({ method }: { method: any }) {
   return <CompletenessBar method={method} />
 }
+
+// Section badges — replaces the score bar in method header
+export function SectionBadges({ method }: { method: any }) {
+  const sections = [
+    {
+      key: 'chromatography',
+      label: 'Chromatography',
+      icon: '⟳',
+      check: () => {
+        const hasCol = method.column_name || method.column_brand
+        const hasMP = method.mobile_phase_a && method.mobile_phase_b
+        const hasGrad = method.gradient_steps?.length > 0
+        const filled = [hasCol, hasMP, hasGrad].filter(Boolean).length
+        return filled === 3 ? 'complete' : filled > 0 ? 'partial' : 'missing'
+      },
+      tooltip: 'Column, mobile phases and gradient program'
+    },
+    {
+      key: 'mrm',
+      label: 'MRM',
+      icon: '⇌',
+      check: () => {
+        const quant = (method.mrm_transitions || []).filter((t: any) => !t.is_internal_standard && t.is_quantifier)
+        if (quant.length === 0) return 'missing'
+        const hasCE = quant.some((t: any) => t.collision_energy_ev)
+        const hasRT = quant.some((t: any) => t.retention_time_min)
+        return hasCE && hasRT ? 'complete' : 'partial'
+      },
+      tooltip: 'MRM transitions with CE and retention times'
+    },
+    {
+      key: 'ms_source',
+      label: 'MS Source',
+      icon: '⚡',
+      check: () => {
+        const fields = [
+          method.ion_spray_voltage, method.source_temperature_c, method.gas1,
+          method.gas2, method.curtain_gas, method.capillary_voltage_pos_v,
+          method.desolvation_temperature_c, method.capillary_voltage_v,
+          method.capillary_voltage_neg_v
+        ]
+        const filled = fields.filter(Boolean).length
+        return filled >= 3 ? 'complete' : filled > 0 ? 'partial' : 'missing'
+      },
+      tooltip: 'Ion source voltages, gases and temperatures'
+    },
+    {
+      key: 'validation',
+      label: 'Validation',
+      icon: '✓',
+      check: () => {
+        const cv = method.compound_validation || []
+        if (cv.length === 0) return 'missing'
+        const hasLLOQ = cv.some((v: any) => v.lloq)
+        const hasCV = cv.some((v: any) => v.cv_intra_percent || v.cv_inter_percent)
+        const hasR2 = cv.some((v: any) => v.r2)
+        const filled = [hasLLOQ, hasCV, hasR2].filter(Boolean).length
+        return filled === 3 ? 'complete' : filled > 0 ? 'partial' : 'missing'
+      },
+      tooltip: 'LLOQ, CV% precision and R² linearity per compound'
+    },
+    {
+      key: 'sample_prep',
+      label: 'Sample Prep',
+      icon: '🧪',
+      check: () => {
+        const hasMethod = !!method.sample_prep_method
+        const hasDetails = (method.sample_prep_details || '').length > 50
+        return hasMethod && hasDetails ? 'complete' : hasMethod ? 'partial' : 'missing'
+      },
+      tooltip: 'Sample preparation method and detailed protocol'
+    },
+  ]
+
+  type Status = 'complete' | 'partial' | 'missing'
+
+  const styles: Record<Status, { bg: string; text: string; border: string; dot: string }> = {
+    complete: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e' },
+    partial:  { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b' },
+    missing:  { bg: '#f8fafc', text: '#94a3b8', border: '#e2e8f0', dot: '#cbd5e1' },
+  }
+
+  const labels: Record<Status, string> = {
+    complete: 'Complete',
+    partial: 'Partial',
+    missing: 'Missing',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+      {sections.map(s => {
+        const status = s.check() as Status
+        const st = styles[status]
+        return (
+          <div key={s.key}
+            title={s.tooltip}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '4px 10px', borderRadius: '20px',
+              background: st.bg, border: `1px solid ${st.border}`,
+              cursor: 'default', fontSize: '11px', fontWeight: 500,
+              color: st.text, whiteSpace: 'nowrap',
+              transition: 'all 0.15s'
+            }}>
+            <span style={{
+              width: '6px', height: '6px', borderRadius: '50%',
+              background: st.dot, flexShrink: 0,
+              boxShadow: status === 'complete' ? `0 0 0 2px ${st.dot}30` : 'none'
+            }} />
+            {s.label}
+            <span style={{ opacity: 0.6, fontSize: '10px' }}>
+              {status === 'complete' ? '✓' : status === 'partial' ? '◑' : '○'}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

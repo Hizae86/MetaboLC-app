@@ -14,7 +14,7 @@ import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import ChromatographyView from '../components/ChromatographyView'
 import MRMView from '../components/MRMView'
-import { CompletenessBar } from '../components/CompletenessScore'
+import { SectionBadges } from '../components/CompletenessScore'
 import ValidationView from '../components/ValidationView'
 import ValidationEditor from '../components/ValidationEditor'
 import MRMEditor from '../components/MRMEditor'
@@ -423,17 +423,7 @@ export default function MethodDetail() {
           </div>
 
 
-          {method && <CompletenessBar method={method} onEditTab={(tab) => {
-            setEf(method)
-            setGrad([...method.gradient_steps])
-            setTrans([...method.mrm_transitions])
-            setEditing(true)
-            setEditTab(tab === 'chromatography' ? 'chromatography' :
-                       tab === 'mrm' ? 'mrm' :
-                       tab === 'ms' ? 'ms' :
-                       tab === 'validation' ? 'validation' :
-                       tab === 'sample' ? 'sample' : 'basic')
-          }} />}
+          {method && <SectionBadges method={method} />}
 
           {/* Action buttons — horizontal row */}
           <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
