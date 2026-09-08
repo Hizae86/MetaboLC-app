@@ -845,7 +845,7 @@ export default function MethodDetail() {
                     <select style={{fontSize:'0.78rem',padding:'0.2rem 0.4rem',border:'1px solid #d1d5db',borderRadius:'0.3rem'}}
                       value={ef.validation_units||'ng/mL'}
                       onChange={e=>u('validation_units')(e.target.value)}>
-                      {['ng/mL','μg/L','nmol/L','pmol/L','pg/mL','μg/mL','mg/L','mmol/L','ng/L','pg/mg'].map(u=>(
+                      {['ng/mL','μg/L','nmol/L','pmol/L','pg/mL','μg/mL','mg/L','mmol/L','ng/L','pg/mg','μmol/L','μmol/mol creatinine','mmol/mol creatinine'].map(u=>(
                         <option key={u}>{u}</option>
                       ))}
                     </select>

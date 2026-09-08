@@ -19,7 +19,7 @@ import RetentionTimePredictor from './pages/RetentionTimePredictor'
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{background:"#060d1a"}}>
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>

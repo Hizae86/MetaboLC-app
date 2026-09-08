@@ -83,12 +83,10 @@ export default function TrendingCarousel() {
                 key={`${m.id}-${idx}`}
                 to={`/method/${m.id}`}
                 style={{ textDecoration: 'none', flexShrink: 0, width: '200px' }}>
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden
+                <div className="border rounded-xl overflow-hidden" style={{background:"rgba(255,255,255,0.04)",borderColor:"rgba(255,255,255,0.08)"}} className2="
                   hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5
                   transition-all duration-200 h-full">
 
-                  {/* Matrix color bar */}
-                  <div style={{ height: '2px', background: mc.border }} />
 
                   <div className="p-3">
                     {/* Matrix + views */}

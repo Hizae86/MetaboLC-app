@@ -66,7 +66,21 @@ export default function Methods() {
   })
 
   return (
-    <div style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}} className="space-y-4 pb-12">
+    <>
+    <style>{`
+      .methods-page { background: #060d1a; min-height: 100vh; }
+      .methods-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
+      .methods-page .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
+      .methods-page .text-slate-800, .methods-page .text-slate-900 { color: #e2e8f0 !important; }
+      .methods-page .text-slate-600 { color: #94a3b8 !important; }
+      .methods-page .text-slate-500 { color: #64748b !important; }
+      .methods-page .text-slate-400 { color: #475569 !important; }
+      .methods-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
+      .methods-page .bg-slate-100 { background: rgba(255,255,255,0.05) !important; }
+      .methods-page input { color: #e2e8f0 !important; }
+      .methods-page .hover\:-translate-y-1:hover { border-color: rgba(56,189,248,0.3) !important; box-shadow: 0 4px 20px rgba(56,189,248,0.08) !important; }
+    `}</style>
+    <div style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}} className="methods-page space-y-4 pb-12">
 
       {/* Search bar */}
       <div className="flex gap-2">
@@ -223,8 +237,7 @@ export default function Methods() {
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden
                   hover:-translate-y-1 hover:shadow-lg hover:border-indigo-200
                   transition-all duration-200 flex flex-col h-full group shadow-sm">
-                  {/* Color bar */}
-                  <div className={`h-0.5 w-full border-b ${matrixCls}`} />
+
                   <div className="p-3 flex flex-col flex-1">
                     {/* Badges */}
                     <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -306,5 +319,6 @@ export default function Methods() {
         </div>
       )}
     </div>
+    </>
   )
 }

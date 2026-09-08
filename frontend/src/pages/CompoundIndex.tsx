@@ -44,7 +44,21 @@ export default function CompoundIndex() {
   )
 
   return (
-    <div style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}}>
+    <>
+    <style>{`
+      .compounds-page { background: #060d1a; min-height: 100vh; }
+      .compounds-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
+      .compounds-page .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
+      .compounds-page .text-slate-900, .compounds-page .text-slate-800 { color: #e2e8f0 !important; }
+      .compounds-page .text-slate-600 { color: #94a3b8 !important; }
+      .compounds-page .text-slate-500 { color: #64748b !important; }
+      .compounds-page .text-slate-400 { color: #475569 !important; }
+      .compounds-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
+      .compounds-page input { color: #e2e8f0 !important; }
+      .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
+      .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
+    `}</style>
+    <div className='compounds-page' style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}}>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900 tracking-tight mb-1">
@@ -83,14 +97,14 @@ export default function CompoundIndex() {
                 transition-all duration-200 flex flex-col">
 
               {/* Structure image */}
-              <div className="bg-slate-50 flex items-center justify-center p-3"
-                style={{height:'120px'}}>
+              <div className="flex items-center justify-center p-3"
+                style={{height:'120px', background:'#000000'}}>
                 {c.pubchem_cid && c.pubchem_cid > 0 && !imgErrors.has(c.pubchem_cid) ? (
                   <img
                     src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${c.pubchem_cid}/PNG`}
                     alt={c.name}
                     loading="lazy"
-                    style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain', background:'white'}}
+                    style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}}
                     onError={() => setImgErrors(prev => new Set([...prev, c.pubchem_cid!]))}
                     onLoad={e => (e.currentTarget.style.opacity = '1')}
                   />
@@ -169,5 +183,6 @@ export default function CompoundIndex() {
         </div>
       )}
     </div>
+    </>
   )
 }

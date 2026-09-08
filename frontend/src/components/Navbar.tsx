@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { BookOpen, FlaskConical, Users, Sparkles, Plus, Calculator, ArrowRight, ChevronDown, Clock } from 'lucide-react'
 
@@ -11,7 +11,7 @@ function ToolsDropdown({ active }: { active: boolean }) {
         onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
           transition-all duration-150
-          ${active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+          ${active ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
         <Calculator size={15} />
         Tools
 <ChevronDown size={12} style={{opacity:0.5, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.15s'}} />
@@ -93,12 +93,17 @@ function ToolsDropdown({ active }: { active: boolean }) {
 }
 
 export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handler)
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
   const location = useLocation()
   const active = (path: string) => path === '/methods' ? location.pathname.startsWith('/methods') || location.pathname.startsWith('/method') : location.pathname === path
 
   return (
-    <nav className="bg-white border-b border-slate-200 sticky top-0 z-50"
-      style={{boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+    <nav className="sticky top-0 z-50" style={{background: scrolled ? "rgba(6,13,26,0.85)" : "transparent", borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "none", backdropFilter: scrolled ? "blur(16px)" : "none", transition: "all 0.2s"}}>
       <div className="max-w-screen-xl mx-auto px-6 flex justify-between items-center h-16">
 
         {/* Logo */}
@@ -111,7 +116,7 @@ export default function Navbar() {
           </svg>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="font-bold text-slate-900 text-lg tracking-tight">MetaboLC</span>
+              <span className="font-bold text-white text-lg tracking-tight">MetaboLC</span>
               <span style={{
                 fontSize:'10px', fontWeight:600, letterSpacing:'0.06em',
                 color:'#4f46e5', background:'#eef2ff',
@@ -120,7 +125,7 @@ export default function Navbar() {
                 verticalAlign:'middle'
               }}>BETA</span>
             </div>
-            <span className="text-xs text-slate-400 tracking-wide -mt-0.5 block">
+            <span className="text-xs tracking-wide -mt-0.5 block" style={{color:"#334155"}}>
               LC-MS/MS Method Reference Library
             </span>
           </div>
@@ -137,8 +142,8 @@ export default function Navbar() {
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
                 transition-all duration-150 no-underline
                 ${active(to)
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  ? 'bg-cyan-500/10 text-cyan-400'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
               <Icon size={15} />
               {label}
             </Link>
