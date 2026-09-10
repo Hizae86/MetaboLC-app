@@ -25,7 +25,7 @@ export default function StarButton({ methodId, size = 'md' }: { methodId: number
     <button onClick={toggle} title={starred ? 'Remove from saved' : 'Save method'}
       style={{background:'none',border:'none',cursor:'pointer',padding:'2px',
         display:'flex',alignItems:'center',gap:'3px',
-        color: starred ? '#EF9F27' : '#9ca3af',transition:'color 0.15s'}}>
+        color: starred ? '#fbbf24' : '#64748b',transition:'color 0.15s'}}>
       <svg width={s} height={s} viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'}
         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>

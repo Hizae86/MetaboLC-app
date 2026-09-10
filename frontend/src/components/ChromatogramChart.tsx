@@ -53,8 +53,8 @@ const CustomTooltip = ({ active, payload, label, peaks }: any) => {
 
   return (
     <div style={{
-      background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
-      padding: '10px 14px', fontSize: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+      background: '#0a1526', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px',
+      padding: '10px 14px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
     }}>
       <p style={{ color: '#94a3b8', marginBottom: '6px', fontMono: true }}>
         t = {parseFloat(label).toFixed(3)} min
@@ -64,7 +64,7 @@ const CustomTooltip = ({ active, payload, label, peaks }: any) => {
         return (
           <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: peak?.color || p.color, flexShrink: 0 }} />
-            <span style={{ fontWeight: 600, color: '#1e293b' }}>{p.name}</span>
+            <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{p.name}</span>
             <span style={{ color: '#64748b', marginLeft: 'auto', fontFamily: 'monospace' }}>
               {p.value.toFixed(1)}%
             </span>
@@ -116,11 +116,11 @@ export default function ChromatogramChart({ peaks, runTime, compact = false, tit
   // Full detailed version
   return (
     <div style={{
-      background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px',
-      padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px',
+      padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
     }}>
       {title && (
-        <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: '#f1f5f9', marginBottom: '16px' }}>
           {title}
         </p>
       )}
@@ -134,11 +134,11 @@ export default function ChromatogramChart({ peaks, runTime, compact = false, tit
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '4px 10px', borderRadius: '20px', border: 'none',
-              background: hoveredPeak === p.name ? p.color + '20' : '#f8fafc',
+              background: hoveredPeak === p.name ? p.color + '20' : 'rgba(255,255,255,0.05)',
               cursor: 'pointer', transition: 'all 0.15s'
             }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
-            <span style={{ fontSize: '11px', fontWeight: 500, color: '#334155' }}>{p.name}</span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: '#f1f5f9' }}>{p.name}</span>
             <span style={{ fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace' }}>
               {p.rt.toFixed(2)} min
             </span>
@@ -159,7 +159,7 @@ export default function ChromatogramChart({ peaks, runTime, compact = false, tit
               ))}
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
 
             <XAxis
               dataKey="t"
@@ -169,7 +169,7 @@ export default function ChromatogramChart({ peaks, runTime, compact = false, tit
               tickFormatter={v => v.toFixed(1)}
               label={{ value: 'Time (min)', position: 'insideBottom', offset: -10, fontSize: 11, fill: '#94a3b8' }}
               tick={{ fontSize: 10, fill: '#94a3b8' }}
-              axisLine={{ stroke: '#e2e8f0' }}
+              axisLine={{ stroke: 'rgba(255,255,255,0.15)' }}
               tickLine={false}
             />
 
@@ -184,7 +184,7 @@ export default function ChromatogramChart({ peaks, runTime, compact = false, tit
 
             <Tooltip
               content={<CustomTooltip peaks={peaks} />}
-              cursor={{ stroke: '#e2e8f0', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: 'rgba(255,255,255,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
 
             {/* RT reference lines */}

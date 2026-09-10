@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ChromatogramBackground from '../components/ChromatogramBackground'
 import axios from 'axios'
 
 const API = 'http://127.0.0.1:8000/api'
@@ -48,6 +49,7 @@ export default function Home() {
   const [stats, setStats] = useState({ methods: 0, transitions: 0, contributors: 9 })
   const [placeholder, setPlaceholder] = useState(PLACEHOLDERS[0])
   const [phIndex, setPhIndex] = useState(0)
+  const [showAllAreas, setShowAllAreas] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const methodCount = useCountUp(stats.methods)
@@ -94,6 +96,8 @@ export default function Home() {
       overflow: 'hidden',
     }}>
 
+      <ChromatogramBackground />
+
       {/* Grid SVG */}
       <svg style={{position:'fixed',inset:0,width:'100%',height:'100%',opacity:0.07,pointerEvents:'none'}} xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -138,7 +142,7 @@ export default function Home() {
             background: 'linear-gradient(135deg, #ffffff 0%, #94a3b8 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>MetaboLC</h1>
-          <p style={{ color: '#475569', fontSize: '15px', marginBottom: '24px' }}>
+          <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '24px' }}>
             The open reference library of clinical LC-MS/MS methods
           </p>
 
@@ -286,22 +290,39 @@ export default function Home() {
           </div>
 
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {AREAS.map(area => {
-              const count = allMethods.filter(m => m.clinical_application === area).length
-              if (!count) return null
+            {(() => {
+              const visibleAreas = AREAS
+                .map(area => ({ area, count: allMethods.filter(m => m.clinical_application === area).length }))
+                .filter(a => a.count > 0)
+              const shown = showAllAreas ? visibleAreas : visibleAreas.slice(0, 6)
+              const hidden = visibleAreas.length - shown.length
               return (
-                <button key={area} onClick={() => navigate(`/methods?q=${encodeURIComponent(area)}`)}
-                  style={{
-                    padding: '4px 11px', borderRadius: '12px',
-                    background: 'transparent', border: '1px solid rgba(56,189,248,0.12)',
-                    color: '#334155', fontSize: '11px', cursor: 'pointer', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(56,189,248,0.4)'; e.currentTarget.style.color = '#38bdf8'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(56,189,248,0.12)'; e.currentTarget.style.color = '#334155'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                  {area}
-                </button>
+                <>
+                  {shown.map(({ area }) => (
+                    <button key={area} onClick={() => navigate(`/methods?q=${encodeURIComponent(area)}`)}
+                      style={{
+                        padding: '4px 11px', borderRadius: '12px',
+                        background: 'transparent', border: '1px solid rgba(56,189,248,0.12)',
+                        color: '#64748b', fontSize: '11px', cursor: 'pointer', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(56,189,248,0.4)'; e.currentTarget.style.color = '#38bdf8'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(56,189,248,0.12)'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                      {area}
+                    </button>
+                  ))}
+                  {hidden > 0 && (
+                    <button onClick={() => setShowAllAreas(true)}
+                      style={{
+                        padding: '4px 11px', borderRadius: '12px',
+                        background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.2)',
+                        color: '#38bdf8', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                      }}>
+                      +{hidden} more
+                    </button>
+                  )}
+                </>
               )
-            })}
+            })()}
           </div>
         </motion.div>
 

@@ -92,10 +92,10 @@ export default function ValidationEditor({ validation, setValidation, units }: P
     const act = isActive(row, col)
 
     const displayVal = val === '' || val === null || val === undefined
-      ? <span className="text-slate-300">—</span>
+      ? <span className="text-slate-600">—</span>
       : val === 'N/A'
       ? <span className="text-slate-400 italic text-xs">N/A</span>
-      : <span>{val}</span>
+      : <span className="text-slate-200">{val}</span>
 
     if (act) return (
       <input
@@ -107,7 +107,7 @@ export default function ValidationEditor({ validation, setValidation, units }: P
         onKeyDown={e => handleKeyDown(e, row, col)}
         onPaste={e => handlePaste(e, row, col)}
         className={`w-full h-full px-2.5 py-1.5 text-sm outline-none
-          border-2 border-blue-500 rounded bg-blue-50
+          border-2 border-sky-400 rounded bg-sky-500/10 text-slate-100
           ${numeric ? 'text-right font-mono' : 'text-left'}`}
         style={{ fontSize: '13px' }}
         placeholder="—"
@@ -119,7 +119,7 @@ export default function ValidationEditor({ validation, setValidation, units }: P
         onClick={() => setActive({ r: row, c: col })}
         onPaste={e => { setActive({ r: row, c: col }); handlePaste(e, row, col) }}
         className={`w-full px-2.5 py-1.5 text-sm cursor-text rounded
-          hover:bg-slate-50 transition-colors select-none
+          hover:bg-white/5 transition-colors select-none
           ${numeric ? 'text-right font-mono' : 'text-left'}`}
         style={{ fontSize: '13px', minHeight: '32px' }}>
         {displayVal}
@@ -128,7 +128,7 @@ export default function ValidationEditor({ validation, setValidation, units }: P
   }
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-x-auto mb-3">
+    <div className="border border-white/10 rounded-xl overflow-x-auto mb-3">
       <table ref={tableRef} className="w-full border-collapse" style={{ minWidth: '680px' }}>
         <thead>
           <tr className="bg-slate-900">
@@ -159,24 +159,24 @@ export default function ValidationEditor({ validation, setValidation, units }: P
                       ⋮
                     </button>
                     {fillMenu === field && (
-                      <div className="absolute right-0 top-6 z-50 bg-white border border-slate-200
+                      <div className="absolute right-0 top-6 z-50 bg-[#0e1b2e] border border-white/10
                         rounded-lg shadow-lg py-1 min-w-[140px]"
                         onMouseDown={e => e.stopPropagation()}>
-                        <p className="px-3 py-1 text-xs text-slate-400 font-medium uppercase tracking-wider">
+                        <p className="px-3 py-1 text-xs text-slate-500 font-medium uppercase tracking-wider">
                           Fill column
                         </p>
                         {['0', '0.5', '1', '5', '10', 'N/A'].map(val => (
                           <button key={val}
-                            className="w-full text-left px-3 py-1.5 text-sm text-slate-700
-                              hover:bg-slate-50 transition-colors font-mono"
+                            className="w-full text-left px-3 py-1.5 text-sm text-slate-200
+                              hover:bg-white/10 transition-colors font-mono"
                             onClick={() => fillColumn(field, val)}>
                             {val}
                           </button>
                         ))}
-                        <div className="border-t border-slate-100 mt-1 pt-1">
+                        <div className="border-t border-white/10 mt-1 pt-1">
                           <button
-                            className="w-full text-left px-3 py-1.5 text-sm text-slate-700
-                              hover:bg-slate-50 transition-colors"
+                            className="w-full text-left px-3 py-1.5 text-sm text-slate-200
+                              hover:bg-white/10 transition-colors"
                             onClick={() => {
                               const val = prompt(`Fill all ${COL_LABELS[field]} with:`)
                               if (val !== null) fillColumn(field, val)
@@ -200,10 +200,10 @@ export default function ValidationEditor({ validation, setValidation, units }: P
           </tr>
         </thead>
 
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-white/10">
           {validation.map((v, i) => (
             <tr key={i}
-              className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}
+              className={i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.03]'}
               style={{ height: '36px' }}>
               <td className="p-0.5">
                 {renderCell(i, 0, 'compound_name', false)}
@@ -219,7 +219,7 @@ export default function ValidationEditor({ validation, setValidation, units }: P
               <td className="text-center p-0.5 w-8">
                 <button
                   onClick={() => setValidation(validation.filter((_, idx) => idx !== i))}
-                  className="text-slate-300 hover:text-red-500 transition-colors
+                  className="text-slate-600 hover:text-red-400 transition-colors
                     text-base leading-none px-1">
                   ×
                 </button>
@@ -230,8 +230,8 @@ export default function ValidationEditor({ validation, setValidation, units }: P
       </table>
 
       {/* Keyboard hints */}
-      <div className="flex gap-4 px-3 py-2 bg-slate-50 border-t border-slate-100
-        text-xs text-slate-400">
+      <div className="flex gap-4 px-3 py-2 bg-white/5 border-t border-white/10
+        text-xs text-slate-500">
         <span>Tab / Shift+Tab — next/prev cell</span>
         <span>Enter / ↑↓ — move rows</span>
         <span>Esc — exit cell</span>

@@ -63,7 +63,19 @@ export default function Contributors() {
   const top3 = [contributors[1], contributors[0], contributors[2]]
 
   return (
-    <div className="max-w-2xl mx-auto pb-16">
+    <>
+    <style>{`
+      .contributors-page { background: #060d1a; min-height: 100vh; }
+      .contributors-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
+      .contributors-page .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
+      .contributors-page .text-slate-900, .contributors-page .text-slate-800 { color: #e2e8f0 !important; }
+      .contributors-page .text-slate-600 { color: #94a3b8 !important; }
+      .contributors-page .text-slate-500 { color: #64748b !important; }
+      .contributors-page .text-slate-400 { color: #475569 !important; }
+      .contributors-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
+      .contributors-page .bg-slate-100 { background: rgba(255,255,255,0.05) !important; }
+    `}</style>
+    <div className="contributors-page max-w-2xl mx-auto pb-16">
       <Link to="/" className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-6 block">
         ← Repository
       </Link>
@@ -181,5 +193,6 @@ export default function Contributors() {
         </Link>
       </div>
     </div>
+    </>
   )
 }

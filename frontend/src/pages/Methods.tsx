@@ -12,12 +12,15 @@ const MATRIX_CLS: Record<string, string> = {
   plasma: 'bg-red-50 text-red-700 border-red-200',
   serum: 'bg-orange-50 text-orange-700 border-orange-200',
   urine: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  'whole blood': 'bg-red-100 text-red-900 border-red-300',
+  'whole blood': 'bg-violet-50 text-violet-700 border-violet-200',
   'dried blood spot': 'bg-pink-50 text-pink-700 border-pink-200',
   csf: 'bg-blue-50 text-blue-700 border-blue-200',
   saliva: 'bg-green-50 text-green-700 border-green-200',
   other: 'bg-slate-50 text-slate-600 border-slate-200',
 }
+
+const MATRIX_LABEL: Record<string, string> = { csf: 'CSF' }
+const matrixLabel = (m: string) => MATRIX_LABEL[m.toLowerCase()] || m.replace(/\b\w/g, c => c.toUpperCase())
 
 const VENDOR_CLS: Record<string, string> = {
   'Sciex': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -212,13 +215,16 @@ export default function Methods() {
             ${!matrixFilter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
           All ({methods.length})
         </button>
-        {MATRIX_PILLS.map(m => (
-          <button key={m} onClick={() => setMatrixFilter(matrixFilter === m ? '' : m)}
-            className={`text-xs px-3 py-1 rounded-full border font-medium transition-all capitalize
-              ${matrixFilter === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
-            {m}
-          </button>
-        ))}
+        {MATRIX_PILLS.map(m => {
+          const count = methods.filter(x => x.matrix?.toLowerCase() === m).length
+          return (
+            <button key={m} onClick={() => setMatrixFilter(matrixFilter === m ? '' : m)}
+              className={`text-xs px-3 py-1 rounded-full border font-medium transition-all
+                ${matrixFilter === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
+              {matrixLabel(m)} ({count})
+            </button>
+          )
+        })}
       </div>
 
       {/* Results */}

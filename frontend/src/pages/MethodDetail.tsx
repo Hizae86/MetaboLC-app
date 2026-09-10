@@ -141,7 +141,7 @@ const MFR_PARAMS: Record<string, {headers: string[], fields: string[]}> = {
   'Other':         { headers: ['Polarity', 'CE (eV)', 'DP (V)'],           fields: ['polarity', 'collision_energy_ev', 'declustering_potential'] },
 }
 
-const NR = () => <span style={{color:'#d1d5db',fontSize:'0.7rem'}}>N/R</span>
+const NR = () => <span style={{color:'rgba(255,255,255,0.18)',fontSize:'0.7rem'}}>N/R</span>
 
 const val = (v: any) => v !== null && v !== undefined ? v : <NR />
 
@@ -320,8 +320,8 @@ export default function MethodDetail() {
     a.href = url; a.download = res.data.filename; a.click()
   }
 
-  if (loading) return <div style={{textAlign:'center',padding:'4rem',color:'#6b7280'}}>Loading...</div>
-  if (!method) return <div style={{textAlign:'center',padding:'4rem',color:'#6b7280'}}>Method not found.</div>
+  if (loading) return <div style={{textAlign:'center',padding:'4rem',color:'#64748b'}}>Loading...</div>
+  if (!method) return <div style={{textAlign:'center',padding:'4rem',color:'#64748b'}}>Method not found.</div>
 
   const mfrParams = MFR_PARAMS[method.instrument_manufacturer] || MFR_PARAMS['Other']
 
@@ -336,15 +336,16 @@ export default function MethodDetail() {
 
   const F = ({label, value}: any) => !value ? null : (
     <div>
-      <p style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'0.2rem'}}>{label}</p>
-      <p style={{fontSize:'0.875rem',fontWeight:'500',color:'#111827'}}>{value}</p>
+      <p style={{fontSize:'0.75rem',color:'#64748b',marginBottom:'0.2rem'}}>{label}</p>
+      <p style={{fontSize:'0.875rem',fontWeight:'500',color:'#f1f5f9'}}>{value}</p>
     </div>
   )
 
-  const IS = {width:'100%',padding:'0.4rem 0.6rem',border:'1px solid #d1d5db',
-    borderRadius:'0.4rem',fontSize:'0.85rem',boxSizing:'border-box' as const}
-  const LS = {display:'block',fontSize:'0.8rem',fontWeight:'500' as const,color:'#374151',marginBottom:'0.25rem'}
-  const SS = {gridColumn:'1/-1' as const,borderBottom:'1px solid #e5e7eb',paddingBottom:'0.5rem',marginTop:'0.75rem',marginBottom:'0.25rem'}
+  const IS = {width:'100%',padding:'0.4rem 0.6rem',border:'1px solid rgba(255,255,255,0.15)',
+    borderRadius:'0.4rem',fontSize:'0.85rem',boxSizing:'border-box' as const,
+    background:'rgba(255,255,255,0.05)',color:'#f1f5f9'}
+  const LS = {display:'block',fontSize:'0.8rem',fontWeight:'500' as const,color:'#94a3b8',marginBottom:'0.25rem'}
+  const SS = {gridColumn:'1/-1' as const,borderBottom:'1px solid rgba(255,255,255,0.1)',paddingBottom:'0.5rem',marginTop:'0.75rem',marginBottom:'0.25rem'}
 
   const mfrEditFields = () => {
     const mfr = ef.instrument_manufacturer || method.instrument_manufacturer
@@ -359,7 +360,7 @@ export default function MethodDetail() {
 
   return (
     <div style={{maxWidth:'900px',margin:'0 auto'}}>
-      <Link to="/" style={{color:'#1d4ed8',fontSize:'0.875rem',textDecoration:'none',display:'block',marginBottom:'1.5rem'}}>
+      <Link to="/" style={{color:'#38bdf8',fontSize:'0.875rem',textDecoration:'none',display:'block',marginBottom:'1.5rem'}}>
         ← Back to repository
       </Link>
 
@@ -368,35 +369,35 @@ export default function MethodDetail() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        style={{background:'white',border:'1px solid #e5e7eb',borderRadius:'16px',
-          padding:'1.5rem',marginBottom:'12px',boxShadow:'0 1px 4px rgba(0,0,0,0.05)'}}>
+        style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'16px',
+          padding:'1.5rem',marginBottom:'12px',boxShadow:'0 1px 4px rgba(0,0,0,0.2)'}}>
         <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
           {/* Badges row */}
           <div style={{display:'flex',gap:'6px',flexWrap:'wrap',alignItems:'center'}}>
             {(() => {
               const MS: Record<string,{bg:string,color:string}> = {
-                plasma:{bg:'#fee2e2',color:'#b91c1c'},serum:{bg:'#ffedd5',color:'#c2410c'},
-                urine:{bg:'#fef9c3',color:'#a16207'},'whole blood':{bg:'#fecaca',color:'#991b1b'},
-                'dried blood spot':{bg:'#fce7f3',color:'#9d174d'},CSF:{bg:'#dbeafe',color:'#1e40af'},
-                saliva:{bg:'#dcfce7',color:'#15803d'},tissue:{bg:'#f3e8ff',color:'#6b21a8'},other:{bg:'#f3f4f6',color:'#374151'}
+                plasma:{bg:'rgba(248,113,113,0.15)',color:'#f87171'},serum:{bg:'rgba(251,146,60,0.15)',color:'#fb923c'},
+                urine:{bg:'rgba(250,204,21,0.15)',color:'#facc15'},'whole blood':{bg:'rgba(248,113,113,0.22)',color:'#f87171'},
+                'dried blood spot':{bg:'rgba(244,114,182,0.15)',color:'#f472b6'},CSF:{bg:'rgba(56,189,248,0.15)',color:'#7dd3fc'},
+                saliva:{bg:'rgba(74,222,128,0.15)',color:'#4ade80'},tissue:{bg:'rgba(168,85,247,0.15)',color:'#c084fc'},other:{bg:'rgba(255,255,255,0.05)',color:'#94a3b8'}
               }
               const ms = MS[method.matrix?.toLowerCase()] || MS.other
               return <span style={{fontSize:'11px',fontWeight:'600',padding:'3px 10px',borderRadius:'20px',
                 background:ms.bg,color:ms.color}}>{method.matrix}</span>
             })()}
             <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',
-              background:'#f1f5f9',color:'#475569',fontFamily:'monospace',fontWeight:'500'}}>
+              background:'rgba(255,255,255,0.04)',color:'#94a3b8',fontFamily:'monospace',fontWeight:'500'}}>
               {method.ionization_mode?.split('/')[0] || 'ESI+'}
             </span>
             {method.clinical_application && (
               <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',
-                background:'#E1F5EE',color:'#085041',border:'0.5px solid #5DCAA5'}}>
+                background:'rgba(45,212,191,0.15)',color:'#2dd4bf',border:'0.5px solid rgba(45,212,191,0.4)'}}>
                 {method.clinical_application}
               </span>
             )}
             {method.status==='verified' && (
               <span className="flex items-center gap-1" style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'20px',
-                background:'#EAF3DE',color:'#27500A',border:'0.5px solid #97C459'}}>
+                background:'rgba(74,222,128,0.12)',color:'#4ade80',border:'0.5px solid rgba(74,222,128,0.4)'}}>
                 <CheckCircle size={11} /> Verified
               </span>
             )}
@@ -408,7 +409,7 @@ export default function MethodDetail() {
 
           {/* Title */}
           <div>
-            <h1 style={{fontSize:'26px',fontWeight:'700',color:'#0f172a',marginBottom:'6px',letterSpacing:'-0.03em',lineHeight:'1.2'}}>
+            <h1 style={{fontSize:'26px',fontWeight:'700',color:'#f1f5f9',marginBottom:'6px',letterSpacing:'-0.03em',lineHeight:'1.2'}}>
               {method.analyte}
             </h1>
             <p style={{fontSize:'13px',color:'#64748b',marginBottom:'10px',lineHeight:'1.5'}}>
@@ -432,56 +433,56 @@ export default function MethodDetail() {
           {method && <SectionBadges method={method} validationStatus={validation.length > 0 ? (validation.some((v:any) => v.lloq || v.loq || v.cv_percent) ? 'complete' : 'partial') : 'missing'} />}
 
           {/* Action buttons — horizontal row */}
-          <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
             {isSuperUser ? (
               <>
                 <button onClick={() => { setEf(method); setGrad([...method.gradient_steps]); setTrans([...method.mrm_transitions]); setEditing(true); setEditTab('basic') }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 transition-all">
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-white/10 rounded-lg bg-white/5 text-slate-300 hover:bg-white/10 transition-all">
                   <Pencil size={12} /> Edit
                 </button>
                 <button onClick={handleVerify}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all
-                    ${method.status==='verified' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                    ${method.status==='verified' ? 'bg-green-500/10 border-green-400/30 text-green-300' : 'bg-white/5 border-white/10 text-slate-400'}`}>
                   {method.status==='verified' ? <><CheckCircle size={12} /> Verified</> : <><Circle size={12} /> Mark verified</>}
                 </button>
               </>
             ) : (
               <button onClick={handleSuperUserLogin}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-white/10 rounded-lg text-slate-400 hover:border-indigo-400/50 hover:text-indigo-300 transition-all">
                 🔐 Superuser login
               </button>
             )}
             {method.mrm_transitions.length > 0 && (
               <button onClick={exportMRM}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-all">
                 <Download size={12} /> Export MRM
               </button>
             )}
             <a href={`/method/${id}/sop`}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-all no-underline">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-teal-400/30 bg-teal-500/10 text-teal-300 hover:bg-teal-500/20 transition-all no-underline">
               <FileText size={12} /> Validation SOP
             </a>
             {method.instrument_manufacturer === 'Sciex' && (
               <a href={`http://127.0.0.1:8000/api/methods/${id}/export/analyst`}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all no-underline"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition-all no-underline"
                 download>
                 <FileCode size={12} /> .qmf (Analyst)
               </a>
             )}
             {method.instrument_manufacturer === 'Waters' && (
               <a href={`http://127.0.0.1:8000/api/methods/${id}/export/masslynx`}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all no-underline"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition-all no-underline"
                 download>
                 <FileSpreadsheet size={12} /> .csv (MassLynx)
               </a>
             )}
             <a href={`mailto:hello@metabolc.io?subject=Error report: ${method.title}&body=Method ID: ${method.id}%0AError: `}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-100 bg-orange-50 text-orange-600 hover:bg-orange-100 transition-all no-underline ml-auto">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-400/30 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 transition-all no-underline ml-auto">
               ⚠️ Report error
             </a>
             {isSuperUser && (
               <button onClick={handleDelete}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-400/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-all">
                 <Trash2 size={12} /> Delete
               </button>
             )}
@@ -490,8 +491,8 @@ export default function MethodDetail() {
       </motion.div>
 
       {/* Download block */}
-      <div style={{border:'1px solid #f1f5f9',borderRadius:'12px',padding:'0.875rem 1.25rem',
-        background:'#fafafa',marginBottom:'10px'}}>
+      <div style={{border:'1px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'0.875rem 1.25rem',
+        background:'rgba(255,255,255,0.03)',marginBottom:'10px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}}>
           <div style={{flex:1}}>
             <p style={{fontSize:'11px',fontWeight:'500',color:'#64748b',marginBottom:'3px'}}>
@@ -503,41 +504,41 @@ export default function MethodDetail() {
             <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
               {['Analyst 1.7','MultiQuant 3.0','MassLynx 4.2','Xcalibur 4.3','LabSolutions'].map(sw => (
                 <span key={sw} style={{fontSize:'10px',fontWeight:'500',padding:'2px 8px',
-                  borderRadius:'6px',background:'rgba(255,255,255,0.6)',color:'#0C447C',
-                  border:'0.5px solid #85B7EB'}}>{sw}</span>
+                  borderRadius:'6px',background:'rgba(56,189,248,0.1)',color:'#7dd3fc',
+                  border:'0.5px solid rgba(56,189,248,0.4)'}}>{sw}</span>
               ))}
             </div>
           </div>
           <button style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',
-            background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',
+            background:'#38bdf8',color:'#03131f',border:'none',borderRadius:'8px',
             fontSize:'12px',fontWeight:'500',cursor:'pointer',flexShrink:0}}>
             📦 Download .zip
           </button>
         </div>
-        <div style={{marginTop:'8px',padding:'6px 10px',background:'rgba(255,255,255,0.5)',
-          borderRadius:'6px',fontSize:'10px',color:'#185FA5'}}>
+        <div style={{marginTop:'8px',padding:'6px 10px',background:'rgba(56,189,248,0.08)',
+          borderRadius:'6px',fontSize:'10px',color:'#7dd3fc'}}>
           ℹ Beta: parameters available as text. Native files pending peer review.
         </div>
       </div>
 
-      <div className="border-b border-slate-200 mb-6 flex overflow-x-auto">
+      <div className="border-b border-white/10 mb-6 flex overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors
               ${activeTab === tab.id
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                ? 'border-sky-400 text-sky-300'
+                : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-white/20'}`}>
             {tab.label}
           </button>
         ))}
       </div>
 
       {activeTab==='chromatography' && (
-        <div className="card">
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-            <h2 style={{fontWeight:'600'}}>Chromatographic Conditions</h2>
+            <h2 style={{fontWeight:'600',color:'#f1f5f9'}}>Chromatographic Conditions</h2>
             <button onClick={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true);setEditTab('chromatography')}}
-              style={{fontSize:'0.8rem',color:'#1d4ed8',background:'none',border:'1px solid #1d4ed8',
+              style={{fontSize:'0.8rem',color:'#38bdf8',background:'none',border:'1px solid rgba(56,189,248,0.35)',
                 borderRadius:'0.4rem',padding:'0.3rem 0.75rem',cursor:'pointer'}}>
               Edit
             </button>
@@ -555,11 +556,11 @@ export default function MethodDetail() {
       )}
 
       {activeTab==='mrm' && (
-        <div className="card">
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-            <h2 style={{fontWeight:'600'}}>MRM Transitions</h2>
+            <h2 style={{fontWeight:'600',color:'#f1f5f9'}}>MRM Transitions</h2>
             <button onClick={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true);setEditTab('mrm')}}
-              style={{fontSize:'0.8rem',color:'#1d4ed8',background:'none',border:'1px solid #1d4ed8',
+              style={{fontSize:'0.8rem',color:'#38bdf8',background:'none',border:'1px solid rgba(56,189,248,0.35)',
                 borderRadius:'0.4rem',padding:'0.3rem 0.75rem',cursor:'pointer'}}>
               Edit
             </button>
@@ -569,10 +570,10 @@ export default function MethodDetail() {
       )}
 
       {activeTab==='ms' && (
-        <div className="card">
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-            <h2 style={{fontWeight:'600'}}>MS Source Parameters</h2>
-            <span style={{fontSize:'0.75rem',color:'#6b7280',background:'#f3f4f6',
+            <h2 style={{fontWeight:'600',color:'#f1f5f9'}}>MS Source Parameters</h2>
+            <span style={{fontSize:'0.75rem',color:'#64748b',background:'rgba(255,255,255,0.05)',
               padding:'0.25rem 0.75rem',borderRadius:'9999px'}}>
               {method.instrument_manufacturer}
             </span>
@@ -583,17 +584,17 @@ export default function MethodDetail() {
               {label:'Source Temperature', field:'source_temperature_c', unit:'°C'},
             ]
             const hasAny = params.some(p => method[p.field] !== null && method[p.field] !== undefined)
-            if (!hasAny) return <p style={{fontSize:'0.8rem',color:'#9ca3af'}}>No MS source parameters recorded. Click Edit to add them.</p>
+            if (!hasAny) return <p style={{fontSize:'0.8rem',color:'#64748b'}}>No MS source parameters recorded. Click Edit to add them.</p>
             return (
               <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
                 {params.map(p => {
                   const v = method[p.field]
                   if (v === null || v === undefined) return null
                   return (
-                    <div key={p.field} style={{background:'#f9fafb',borderRadius:'0.5rem',padding:'0.75rem'}}>
-                      <p style={{fontSize:'0.7rem',color:'#6b7280',marginBottom:'0.25rem'}}>{p.label}</p>
-                      <p style={{fontSize:'1rem',fontWeight:'700',color:'#1e3a5f'}}>
-                        {v} <span style={{fontSize:'0.7rem',fontWeight:'400',color:'#9ca3af'}}>{p.unit}</span>
+                    <div key={p.field} style={{background:'rgba(255,255,255,0.04)',borderRadius:'0.5rem',padding:'0.75rem'}}>
+                      <p style={{fontSize:'0.7rem',color:'#64748b',marginBottom:'0.25rem'}}>{p.label}</p>
+                      <p style={{fontSize:'1rem',fontWeight:'700',color:'#f1f5f9'}}>
+                        {v} <span style={{fontSize:'0.7rem',fontWeight:'400',color:'#64748b'}}>{p.unit}</span>
                       </p>
                     </div>
                   )
@@ -605,7 +606,7 @@ export default function MethodDetail() {
       )}
 
       {activeTab==='validation' && (
-        <div className="card">
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <ValidationView
             validation={validation}
             units={ef.validation_units || 'ng/mL'}
@@ -616,10 +617,10 @@ export default function MethodDetail() {
       )}
 
       {activeTab==='sample_prep' && (
-        <div className="card">
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           {!method.sample_prep_method && !method.sample_prep_details
             ? <button onClick={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true);setEditTab('sample')}}
-                style={{color:'#1d4ed8',fontSize:'0.875rem',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>
+                style={{color:'#38bdf8',fontSize:'0.875rem',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>
                 + Add sample preparation details
               </button>
             : <SamplePrepView method={method} onEdit={()=>{setEf(method);setGrad([...method.gradient_steps]);setTrans([...method.mrm_transitions]);setEditing(true);setEditTab('sample')}} />
@@ -628,7 +629,7 @@ export default function MethodDetail() {
       )}
 
       {(method.reference || method.notes) && (
-        <div className="card" style={{marginTop:'1.5rem'}}>
+        <div style={{background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:'1px solid rgba(255,255,255,0.08)',padding:'1.5rem',marginBottom:'1.5rem',marginTop:'1.5rem'}}>
           {method.reference && <F label="Reference" value={method.reference} />}
           {method.notes && <div style={{marginTop:'0.75rem'}}><F label="Notes" value={method.notes} /></div>}
         </div>
@@ -639,9 +640,9 @@ export default function MethodDetail() {
 
       {/* Trust & Compliance */}
       <div style={{display:'flex',alignItems:'flex-start',gap:'8px',padding:'10px 14px',
-        background:'#f9fafb',border:'0.5px solid #e5e7eb',borderRadius:'8px',marginTop:'10px',marginBottom:'8px'}}>
+        background:'rgba(255,255,255,0.04)',border:'0.5px solid rgba(255,255,255,0.1)',borderRadius:'8px',marginTop:'10px',marginBottom:'8px'}}>
         <span style={{fontSize:'13px',flexShrink:0}}>⚠️</span>
-        <p style={{fontSize:'11px',color:'#6b7280',lineHeight:'1.5'}}>
+        <p style={{fontSize:'11px',color:'#64748b',lineHeight:'1.5'}}>
           For research and method development reference only. Clinical use requires local validation
           per ISO 15189 or equivalent accreditation standard. MetaboLC does not guarantee analytical
           performance in your specific laboratory conditions.
@@ -650,19 +651,19 @@ export default function MethodDetail() {
 
       {/* Feedback button */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-        padding:'10px 14px',border:'0.5px solid #e5e7eb',borderRadius:'8px',
-        background:'white',marginBottom:'10px'}}>
+        padding:'10px 14px',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'8px',
+        background:'rgba(255,255,255,0.03)',marginBottom:'10px'}}>
         <div>
-          <p style={{fontSize:'12px',fontWeight:'500',color:'#111827',marginBottom:'2px'}}>
+          <p style={{fontSize:'12px',fontWeight:'500',color:'#f1f5f9',marginBottom:'2px'}}>
             Have you run this method?
           </p>
-          <p style={{fontSize:'11px',color:'#6b7280'}}>
+          <p style={{fontSize:'11px',color:'#64748b'}}>
             Share your experience — help other labs calibrate their expectations
           </p>
         </div>
         <a href={`mailto:metabolc@lab.com?subject=Feedback method ${method.id}: ${method.analyte}`}
           style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 14px',
-            background:'#1e3a5f',color:'white',borderRadius:'8px',
+            background:'#38bdf8',color:'#03131f',borderRadius:'8px',
             fontSize:'12px',fontWeight:'500',cursor:'pointer',textDecoration:'none',whiteSpace:'nowrap',flexShrink:0}}>
           💬 Leave a note
         </a>
@@ -672,18 +673,18 @@ export default function MethodDetail() {
       {editing && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:50,
           display:'flex',alignItems:'flex-start',justifyContent:'center',overflowY:'auto',padding:'1rem'}}>
-          <div style={{background:'white',borderRadius:'1rem',width:'100%',maxWidth:'1000px',margin:'auto',overflow:'hidden'}}>
+          <div style={{background:'#0e1b2e',borderRadius:'1rem',width:'100%',maxWidth:'1000px',margin:'auto',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,0.6)'}}>
 
             {/* Modal Header */}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-              padding:'1.25rem 1.5rem',borderBottom:'1px solid #e5e7eb',background:'#1e3a5f'}}>
+              padding:'1.25rem 1.5rem',borderBottom:'1px solid rgba(255,255,255,0.1)',background:'#0e2138'}}>
               <h2 style={{fontSize:'1.1rem',fontWeight:'700',color:'white'}}>Edit Method</h2>
               <button onClick={()=>setEditing(false)}
                 style={{background:'none',border:'none',fontSize:'1.5rem',cursor:'pointer',color:'white'}}>×</button>
             </div>
 
             {/* Edit Tabs */}
-            <div style={{display:'flex',borderBottom:'1px solid #e5e7eb',background:'#f9fafb',overflowX:'auto'}}>
+            <div style={{display:'flex',borderBottom:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',overflowX:'auto'}}>
               {[
                 {id:'basic', label:'Basic Info'},
                 {id:'chromatography', label:'Column & MP'},
@@ -697,8 +698,8 @@ export default function MethodDetail() {
                 <button key={t.id} onClick={()=>setEditTab(t.id)} style={{
                   padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:'500',whiteSpace:'nowrap',
                   background:'none',border:'none',cursor:'pointer',
-                  borderBottom: editTab===t.id ? '2px solid #1d4ed8' : '2px solid transparent',
-                  color: editTab===t.id ? '#1d4ed8' : '#6b7280',
+                  borderBottom: editTab===t.id ? '2px solid #38bdf8' : '2px solid transparent',
+                  color: editTab===t.id ? '#38bdf8' : '#64748b',
                 }}>
                   {t.label}
                 </button>
@@ -757,9 +758,9 @@ export default function MethodDetail() {
               {editTab==='gradient' && <>
                 <div style={{gridColumn:'1/-1'}}>
                   <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse',marginBottom:'0.5rem'}}>
-                    <thead><tr style={{background:'#f3f4f6'}}>
+                    <thead><tr style={{background:'rgba(255,255,255,0.05)'}}>
                       {['Time (min)','%B','Flow (mL/min)','Curve',''].map(h=>(
-                        <th key={h} style={{textAlign:'left',padding:'0.3rem 0.4rem',fontWeight:'600',color:'#374151',fontSize:'0.75rem'}}>{h}</th>
+                        <th key={h} style={{textAlign:'left',padding:'0.3rem 0.4rem',fontWeight:'600',color:'#94a3b8',fontSize:'0.75rem'}}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
@@ -769,13 +770,13 @@ export default function MethodDetail() {
                           <td style={{padding:'0.2rem'}}><input type="number" placeholder="5" style={{...IS,fontSize:'0.8rem'}} value={step.percent_b||''} onChange={e=>{const s=[...grad];s[i]={...s[i],percent_b:e.target.value};setGrad(s)}} /></td>
                           <td style={{padding:'0.2rem'}}><input type="number" placeholder="0.4" style={{...IS,fontSize:'0.8rem'}} value={step.flow_rate_ml_min||''} onChange={e=>{const s=[...grad];s[i]={...s[i],flow_rate_ml_min:e.target.value};setGrad(s)}} /></td>
                           <td style={{padding:'0.2rem'}}><select style={{...IS,fontSize:'0.8rem'}} value={step.curve||'linear'} onChange={e=>{const s=[...grad];s[i]={...s[i],curve:e.target.value};setGrad(s)}}><option>linear</option><option>step</option></select></td>
-                          <td><button onClick={()=>setGrad(grad.filter((_,idx)=>idx!==i))} style={{background:'none',border:'none',color:'#ef4444',cursor:'pointer',fontSize:'1.1rem'}}>×</button></td>
+                          <td><button onClick={()=>setGrad(grad.filter((_,idx)=>idx!==i))} style={{background:'none',border:'none',color:'#f87171',cursor:'pointer',fontSize:'1.1rem'}}>×</button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                   <button onClick={()=>setGrad([...grad,{time_min:'',percent_b:'',flow_rate_ml_min:'',curve:'linear'}])}
-                    style={{padding:'0.3rem 0.8rem',border:'1px solid #1d4ed8',borderRadius:'0.4rem',background:'white',color:'#1d4ed8',cursor:'pointer',fontSize:'0.8rem'}}>
+                    style={{padding:'0.3rem 0.8rem',border:'1px solid rgba(56,189,248,0.35)',borderRadius:'0.4rem',background:'rgba(255,255,255,0.03)',color:'#38bdf8',cursor:'pointer',fontSize:'0.8rem'}}>
                     + Add Step
                   </button>
                 </div>
@@ -783,7 +784,7 @@ export default function MethodDetail() {
 
               {editTab==='mrm' && <>
                 <div style={{gridColumn:'1/-1'}}>
-                  <p style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'0.5rem'}}>
+                  <p style={{fontSize:'0.75rem',color:'#64748b',marginBottom:'0.5rem'}}>
                     {method.instrument_manufacturer} — {mfrParams.headers.join(' · ')}
                   </p>
                                     <MRMEditor
@@ -795,11 +796,11 @@ export default function MethodDetail() {
                   
                   <div style={{display:'flex',gap:'0.5rem'}}>
                     <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:0,precursor_mz:'',product_mz:'',is_quantifier:1,polarity:'ESI+'}])}
-                      style={{padding:'0.3rem 0.8rem',border:'1px solid #1d4ed8',borderRadius:'0.4rem',background:'white',color:'#1d4ed8',cursor:'pointer',fontSize:'0.8rem'}}>
+                      style={{padding:'0.3rem 0.8rem',border:'1px solid rgba(56,189,248,0.35)',borderRadius:'0.4rem',background:'rgba(255,255,255,0.03)',color:'#38bdf8',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Add Transition
                     </button>
                     <button onClick={()=>setTrans([...trans,{compound_name:'',is_internal_standard:1,precursor_mz:'',product_mz:'',is_quantifier:1,polarity:'ESI+'}])}
-                      style={{padding:'0.3rem 0.8rem',border:'1px solid #7c3aed',borderRadius:'0.4rem',background:'#f3e8ff',color:'#7c3aed',cursor:'pointer',fontSize:'0.8rem'}}>
+                      style={{padding:'0.3rem 0.8rem',border:'1px solid #7c3aed',borderRadius:'0.4rem',background:'rgba(168,85,247,0.15)',color:'#c084fc',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Add IS
                     </button>
                   </div>
@@ -840,16 +841,16 @@ export default function MethodDetail() {
                 <div style={{gridColumn:'1/-1'}}>
                   {/* Units selector */}
                   <div style={{display:'flex',alignItems:'center',gap:'0.75rem',marginBottom:'0.75rem',
-                    padding:'0.5rem 0.75rem',background:'#f0f9ff',borderRadius:'0.5rem',border:'1px solid #bae6fd'}}>
-                    <span style={{fontSize:'0.78rem',fontWeight:'600',color:'#0369a1'}}>LOD/LOQ units:</span>
-                    <select style={{fontSize:'0.78rem',padding:'0.2rem 0.4rem',border:'1px solid #d1d5db',borderRadius:'0.3rem'}}
+                    padding:'0.5rem 0.75rem',background:'rgba(56,189,248,0.08)',borderRadius:'0.5rem',border:'1px solid rgba(56,189,248,0.35)'}}>
+                    <span style={{fontSize:'0.78rem',fontWeight:'600',color:'#7dd3fc'}}>LOD/LOQ units:</span>
+                    <select style={{fontSize:'0.78rem',padding:'0.2rem 0.4rem',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'0.3rem',background:'rgba(255,255,255,0.05)',color:'#f1f5f9'}}
                       value={ef.validation_units||'ng/mL'}
                       onChange={e=>u('validation_units')(e.target.value)}>
                       {['ng/mL','μg/L','nmol/L','pmol/L','pg/mL','μg/mL','mg/L','mmol/L','ng/L','pg/mg','μmol/L','μmol/mol creatinine','mmol/mol creatinine'].map(u=>(
                         <option key={u}>{u}</option>
                       ))}
                     </select>
-                    <span style={{fontSize:'0.72rem',color:'#6b7280'}}>Applied to all compounds</span>
+                    <span style={{fontSize:'0.72rem',color:'#64748b'}}>Applied to all compounds</span>
                   </div>
 
                   <ValidationEditor
@@ -869,11 +870,11 @@ export default function MethodDetail() {
                         .filter((c:string)=>!existing.includes(c))
                         .map((c:string)=>({compound_name:c,lod:'',loq:'',r2:'',cv_percent:'',accuracy_percent:'',notes:''}))
                       setValidation([...validation,...newEntries])
-                    }} style={{padding:'0.3rem 0.8rem',border:'1px solid #1d4ed8',borderRadius:'0.4rem',background:'white',color:'#1d4ed8',cursor:'pointer',fontSize:'0.8rem'}}>
+                    }} style={{padding:'0.3rem 0.8rem',border:'1px solid rgba(56,189,248,0.35)',borderRadius:'0.4rem',background:'rgba(255,255,255,0.03)',color:'#38bdf8',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Auto-fill from MRM
                     </button>
                     <button onClick={()=>setValidation([...validation,{compound_name:'',lod:'',loq:'',r2:'',cv_percent:'',accuracy_percent:'',notes:''}])}
-                      style={{padding:'0.3rem 0.8rem',border:'1px solid #6b7280',borderRadius:'0.4rem',background:'white',color:'#6b7280',cursor:'pointer',fontSize:'0.8rem'}}>
+                      style={{padding:'0.3rem 0.8rem',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'0.4rem',background:'rgba(255,255,255,0.03)',color:'#94a3b8',cursor:'pointer',fontSize:'0.8rem'}}>
                       + Add Row
                     </button>
                   </div>
@@ -884,14 +885,14 @@ export default function MethodDetail() {
                 <div>
                   <label style={LS}>Method</label>
                 <div style={{gridColumn:'1/-1',display:'flex',alignItems:'center',gap:'10px',
-                  padding:'10px 14px',background:'#fef3c7',borderRadius:'8px',
+                  padding:'10px 14px',background:'rgba(251,191,36,0.15)',borderRadius:'8px',
                   border:'0.5px solid #fcd34d',marginBottom:'4px'}}>
                   <input type="checkbox" id="is_derivatized"
                     checked={!!ef.is_derivatized}
                     onChange={e=>u('is_derivatized')(e.target.checked ? 1 : 0)}
-                    style={{width:'16px',height:'16px',accentColor:'#d97706',cursor:'pointer'}} />
+                    style={{width:'16px',height:'16px',accentColor:'#fbbf24',cursor:'pointer'}} />
                   <label htmlFor="is_derivatized" style={{fontSize:'13px',fontWeight:'500',
-                    color:'#92400e',cursor:'pointer'}}>
+                    color:'#fbbf24',cursor:'pointer'}}>
                     ⚗️ Derivatized method — Q1/Q3 values correspond to the derivative, not the native compound
                   </label>
                 </div>
@@ -933,13 +934,13 @@ Transfer supernatant to new tube." />
 
             {/* Modal Footer */}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-              padding:'1rem 1.5rem',borderTop:'1px solid #e5e7eb',background:'#f9fafb'}}>
+              padding:'1rem 1.5rem',borderTop:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)'}}>
               <button onClick={()=>setEditing(false)}
-                style={{padding:'0.5rem 1rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',
-                  background:'white',color:'#374151',cursor:'pointer'}}>
+                style={{padding:'0.5rem 1rem',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'0.5rem',
+                  background:'rgba(255,255,255,0.03)',color:'#94a3b8',cursor:'pointer'}}>
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary">
+              <button onClick={handleSave} disabled={saving} style={{background:'#38bdf8',color:'#03131f',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:600,fontSize:'0.875rem',cursor:'pointer',border:'none'}}>
                 {saving ? 'Saving...' : '✓ Save Changes'}
               </button>
             </div>
@@ -989,10 +990,10 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
 
   const paramStyle = (type: string): React.CSSProperties => {
     const map: Record<string, React.CSSProperties> = {
-      vol:   {background:'#E6F1FB', color:'#0C447C'},
-      time:  {background:'#EAF3DE', color:'#27500A'},
-      speed: {background:'#FAEEDA', color:'#633806'},
-      temp:  {background:'#FCEBEB', color:'#A32D2D'},
+      vol:   {background:'rgba(56,189,248,0.12)', color:'#7dd3fc'},
+      time:  {background:'rgba(74,222,128,0.12)', color:'#4ade80'},
+      speed: {background:'rgba(251,191,36,0.12)', color:'#fbbf24'},
+      temp:  {background:'rgba(248,113,113,0.12)', color:'#f87171'},
     }
     return {
       display:'inline-flex', alignItems:'center', gap:'4px',
@@ -1003,26 +1004,26 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
   }
 
   const MATRIX_COLOR: Record<string,{bg:string,text:string,border:string}> = {
-    plasma:            {bg:'#fee2e2', text:'#b91c1c', border:'#fca5a5'},
-    serum:             {bg:'#ffedd5', text:'#c2410c', border:'#fdba74'},
-    urine:             {bg:'#fef9c3', text:'#a16207', border:'#fde047'},
-    'whole blood':     {bg:'#fecaca', text:'#991b1b', border:'#f87171'},
-    'dried blood spot':{bg:'#fce7f3', text:'#9d174d', border:'#f9a8d4'},
-    CSF:               {bg:'#dbeafe', text:'#1e40af', border:'#93c5fd'},
-    saliva:            {bg:'#dcfce7', text:'#15803d', border:'#86efac'},
-    tissue:            {bg:'#f3e8ff', text:'#6b21a8', border:'#d8b4fe'},
+    plasma:            {bg:'rgba(248,113,113,0.15)', text:'#f87171', border:'#fca5a5'},
+    serum:             {bg:'rgba(251,146,60,0.15)', text:'#fb923c', border:'#fb923c'},
+    urine:             {bg:'rgba(250,204,21,0.15)', text:'#facc15', border:'#fbbf24'},
+    'whole blood':     {bg:'rgba(248,113,113,0.22)', text:'#f87171', border:'#f87171'},
+    'dried blood spot':{bg:'rgba(244,114,182,0.15)', text:'#f472b6', border:'#f472b6'},
+    CSF:               {bg:'rgba(56,189,248,0.15)', text:'#7dd3fc', border:'#93c5fd'},
+    saliva:            {bg:'rgba(74,222,128,0.15)', text:'#4ade80', border:'#4ade80'},
+    tissue:            {bg:'rgba(168,85,247,0.15)', text:'#c084fc', border:'#c084fc'},
   }
-  const mc = MATRIX_COLOR[method.matrix] || {bg:'#f3f4f6', text:'#374151', border:'#d1d5db'}
+  const mc = MATRIX_COLOR[method.matrix] || {bg:'rgba(255,255,255,0.05)', text:'#94a3b8', border:'rgba(255,255,255,0.18)'}
 
   return (
     <div>
       {/* Compact header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
         <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-          <span style={{fontSize:'14px',fontWeight:'500',color:'#111827'}}>Sample preparation</span>
+          <span style={{fontSize:'14px',fontWeight:'500',color:'#f1f5f9'}}>Sample preparation</span>
           {method.sample_prep_method && (
             <span style={{fontSize:'11px',fontWeight:'500',padding:'2px 8px',borderRadius:'20px',
-              background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #85B7EB'}}>
+              background:'rgba(56,189,248,0.12)',color:'#7dd3fc',border:'0.5px solid rgba(56,189,248,0.4)'}}>
               {method.sample_prep_method}
             </span>
           )}
@@ -1035,8 +1036,8 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
         </div>
         <button onClick={onEdit}
           style={{display:'flex',alignItems:'center',gap:'4px',padding:'4px 10px',
-            fontSize:'12px',fontWeight:'500',border:'0.5px solid #d1d5db',borderRadius:'6px',
-            background:'white',color:'#6b7280',cursor:'pointer'}}>
+            fontSize:'12px',fontWeight:'500',border:'0.5px solid rgba(255,255,255,0.15)',borderRadius:'6px',
+            background:'rgba(255,255,255,0.03)',color:'#64748b',cursor:'pointer'}}>
           Edit
         </button>
       </div>
@@ -1052,25 +1053,25 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
             return (
               <div key={i}>
                 <div style={{display:'grid',gridTemplateColumns:'28px 1fr auto',
-                  border:'0.5px solid #e5e7eb',borderRadius:'10px',overflow:'hidden',
-                  background:'white'}}>
+                  border:'0.5px solid rgba(255,255,255,0.1)',borderRadius:'10px',overflow:'hidden',
+                  background:'rgba(255,255,255,0.03)'}}>
                   {/* Step number sidebar */}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'center',
-                    background:'#1e3a5f',color:'white',fontSize:'12px',fontWeight:'500',
+                    background:'#38bdf8',color:'#03131f',fontSize:'12px',fontWeight:'500',
                     writingMode:'vertical-rl',textOrientation:'mixed',
                     width:'28px',minHeight:'52px'}}>
                     {i+1}
                   </div>
                   {/* Content */}
                   <div style={{padding:'9px 12px',display:'flex',flexDirection:'column',justifyContent:'center'}}>
-                    <p style={{fontSize:'13px',fontWeight:'500',color:'#111827',marginBottom:'2px'}}>{action}</p>
-                    <p style={{fontSize:'11px',color:'#6b7280',lineHeight:'1.4'}}>{step}</p>
+                    <p style={{fontSize:'13px',fontWeight:'500',color:'#f1f5f9',marginBottom:'2px'}}>{action}</p>
+                    <p style={{fontSize:'11px',color:'#64748b',lineHeight:'1.4'}}>{step}</p>
                   </div>
                   {/* Params column */}
                   {params.length > 0 && (
                     <div style={{display:'flex',flexDirection:'column',justifyContent:'center',
-                      gap:'4px',padding:'8px 10px',borderLeft:'0.5px solid #e5e7eb',
-                      minWidth:'110px',background:'#fafafa'}}>
+                      gap:'4px',padding:'8px 10px',borderLeft:'0.5px solid rgba(255,255,255,0.1)',
+                      minWidth:'110px',background:'rgba(255,255,255,0.03)'}}>
                       {params.map((p, pi) => (
                         <span key={pi} style={paramStyle(p.type)}>
                           {p.type==='vol' ? '💧' : p.type==='time' ? '⏱' : p.type==='speed' ? '🔄' : '🌡'} {p.label}
@@ -1083,7 +1084,7 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
                 {i < steps.length - 1 && (
                   <div style={{display:'grid',gridTemplateColumns:'28px 1fr',height:'6px'}}>
                     <div style={{display:'flex',justifyContent:'center'}}>
-                      <div style={{width:'1px',height:'100%',background:'#e5e7eb'}} />
+                      <div style={{width:'1px',height:'100%',background:'rgba(255,255,255,0.12)'}} />
                     </div>
                     <div />
                   </div>
@@ -1093,13 +1094,13 @@ function SamplePrepView({ method, onEdit }: { method: any, onEdit: () => void })
           })}
         </div>
       ) : method.sample_prep_details ? (
-        <div style={{background:'#f9fafb',borderRadius:'0.5rem',padding:'1rem',
-          fontSize:'0.875rem',color:'#374151',whiteSpace:'pre-wrap'}}>
+        <div style={{background:'rgba(255,255,255,0.04)',borderRadius:'0.5rem',padding:'1rem',
+          fontSize:'0.875rem',color:'#94a3b8',whiteSpace:'pre-wrap'}}>
           {method.sample_prep_details}
         </div>
       ) : (
         <button onClick={onEdit}
-          style={{color:'#1d4ed8',fontSize:'0.875rem',background:'none',border:'none',
+          style={{color:'#38bdf8',fontSize:'0.875rem',background:'none',border:'none',
             cursor:'pointer',padding:0,textDecoration:'underline'}}>
           + Add sample preparation details
         </button>
@@ -1112,8 +1113,8 @@ function F({ label, value }: { label: string; value: any }) {
   if (!value) return null
   return (
     <div>
-      <p style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'0.2rem'}}>{label}</p>
-      <p style={{fontSize:'0.875rem',fontWeight:'500',color:'#111827'}}>{value}</p>
+      <p style={{fontSize:'0.75rem',color:'#64748b',marginBottom:'0.2rem'}}>{label}</p>
+      <p style={{fontSize:'0.875rem',fontWeight:'500',color:'#f1f5f9'}}>{value}</p>
     </div>
 
   )

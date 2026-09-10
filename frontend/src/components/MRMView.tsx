@@ -97,34 +97,34 @@ export default function MRMView({ method, onExport }: Props) {
   }
 
   const ColHeader = ({ label }: { label: string }) => (
-    <th className="text-right px-2 py-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
+    <th className="text-right px-2 py-2 text-xs font-semibold text-slate-400 whitespace-nowrap">
       {label}
     </th>
   )
 
   const Cell = ({ val, right = true }: { val: any; right?: boolean }) => (
-    <td className={`px-2 py-1.5 text-xs font-mono ${right ? 'text-right' : 'text-left'} text-slate-700`}>
-      {val !== null && val !== undefined && val !== '' ? val : <span className="text-slate-300">—</span>}
+    <td className={`px-2 py-1.5 text-xs font-mono ${right ? 'text-right' : 'text-left'} text-slate-300`}>
+      {val !== null && val !== undefined && val !== '' ? val : <span className="text-slate-600">—</span>}
     </td>
   )
 
   const TransRow = ({ t, isISrow = false, isName = '' }: { t: any; isISrow?: boolean; isName?: string }) => (
-    <tr style={{background: isISrow ? '#faf5ff' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+    <tr style={{background: isISrow ? 'rgba(168,85,247,0.08)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
       <td className="px-3 py-1.5">
         {isISrow ? (
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 ring-1 ring-purple-300 shrink-0">IS</span>
-            {isName && <span className="text-xs text-purple-700 font-medium truncate max-w-[120px]">{isName}</span>}
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 ring-1 ring-purple-400/40 shrink-0">IS</span>
+            {isName && <span className="text-xs text-purple-300 font-medium truncate max-w-[120px]">{isName}</span>}
           </div>
         ) : t.is_quantifier ? (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 ring-1 ring-green-300">Quan</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 ring-1 ring-green-400/40">Quan</span>
         ) : (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 ring-1 ring-orange-200">Qual</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-300 ring-1 ring-orange-400/30">Qual</span>
         )}
       </td>
       <td className="px-2 py-1.5 text-center">
         <span className={`text-xs font-medium px-1.5 py-0.5 rounded
-          ${(t.polarity || 'ESI+') === 'ESI+' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+          ${(t.polarity || 'ESI+') === 'ESI+' ? 'bg-sky-500/10 text-sky-300' : 'bg-red-500/10 text-red-300'}`}>
           {t.polarity || 'ESI+'}
         </span>
       </td>
@@ -138,7 +138,7 @@ export default function MRMView({ method, onExport }: Props) {
   )
 
   if (transitions.length === 0) return (
-    <div className="text-center py-8 text-slate-400 text-sm">No MRM transitions recorded</div>
+    <div className="text-center py-8 text-slate-500 text-sm">No MRM transitions recorded</div>
   )
 
   return (
@@ -146,23 +146,23 @@ export default function MRMView({ method, onExport }: Props) {
       {/* Summary */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">
-            <strong className="text-slate-800">{transitions.filter((t: any) => !t.is_internal_standard).length}</strong> analyte transitions
+          <span className="text-xs text-slate-400">
+            <strong className="text-slate-100">{transitions.filter((t: any) => !t.is_internal_standard).length}</strong> analyte transitions
           </span>
-          <span className="text-xs text-slate-400">·</span>
-          <span className="text-xs text-slate-500">
-            <strong className="text-slate-800">{transitions.filter((t: any) => t.is_internal_standard).length}</strong> IS transitions
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-400">
+            <strong className="text-slate-100">{transitions.filter((t: any) => t.is_internal_standard).length}</strong> IS transitions
           </span>
-          <span className="text-xs text-slate-400">·</span>
-          <span className="text-xs text-slate-500">
-            <strong className="text-slate-800">{transitions.length}</strong> total
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-400">
+            <strong className="text-slate-100">{transitions.length}</strong> total
           </span>
         </div>
         {onExport && (
           <button onClick={onExport}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-              bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg
-              hover:bg-indigo-100 transition-all">
+              bg-indigo-500/10 border border-indigo-400/30 text-indigo-300 rounded-lg
+              hover:bg-indigo-500/20 transition-all">
             <Download size={12} /> Export CSV
           </button>
         )}
@@ -174,28 +174,28 @@ export default function MRMView({ method, onExport }: Props) {
         const totalRows = group.rows.length + group.isCompanions.length
         return (
           <div key={gi} className={`border rounded-xl overflow-hidden
-            ${group.isIS ? 'border-purple-200' : 'border-slate-200'}`}>
+            ${group.isIS ? 'border-purple-400/30' : 'border-white/10'}`}>
 
             {/* Group header */}
             <button
               onClick={() => toggleCollapse(group.name)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors
                 ${group.isIS
-                  ? 'bg-purple-50 hover:bg-purple-100'
-                  : 'bg-slate-50 hover:bg-slate-100'}`}>
+                  ? 'bg-purple-500/10 hover:bg-purple-500/15'
+                  : 'bg-white/5 hover:bg-white/10'}`}>
               {isOpen
-                ? <ChevronDown size={14} className="text-slate-400 shrink-0" />
-                : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
+                ? <ChevronDown size={14} className="text-slate-500 shrink-0" />
+                : <ChevronRight size={14} className="text-slate-500 shrink-0" />}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {group.isIS
-                  ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">IS</span>
+                  ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300">IS</span>
                   : null}
-                <span className="text-sm font-semibold text-slate-800 truncate">{group.name}</span>
+                <span className="text-sm font-semibold text-slate-100 truncate">{group.name}</span>
                 {group.isCompanions.length > 0 && (
-                  <span className="text-xs text-purple-600 font-medium shrink-0">+ IS</span>
+                  <span className="text-xs text-purple-300 font-medium shrink-0">+ IS</span>
                 )}
               </div>
-              <span className="text-xs text-slate-400 shrink-0">{totalRows} transition{totalRows !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-slate-500 shrink-0">{totalRows} transition{totalRows !== 1 ? 's' : ''}</span>
             </button>
 
             {/* Transitions table */}
@@ -203,9 +203,9 @@ export default function MRMView({ method, onExport }: Props) {
               <div className="overflow-x-auto">
                 <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="bg-white border-b border-slate-100">
-                      <th className="text-center px-3 py-2 text-xs font-semibold text-slate-500 w-16">Role</th>
-                      <th className="text-center px-2 py-2 text-xs font-semibold text-slate-500 w-14">Pol.</th>
+                    <tr className="bg-white/5 border-b border-white/10">
+                      <th className="text-center px-3 py-2 text-xs font-semibold text-slate-400 w-16">Role</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-slate-400 w-14">Pol.</th>
                       <ColHeader label="Q1 (m/z)" />
                       <ColHeader label="Q3 (m/z)" />
                       <ColHeader label="CE (eV)" />

@@ -279,9 +279,9 @@ export function SectionBadges({ method, validationStatus }: { method: any; valid
   type Status = 'complete' | 'partial' | 'missing'
 
   const styles: Record<Status, { bg: string; text: string; border: string; dot: string }> = {
-    complete: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e' },
-    partial:  { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b' },
-    missing:  { bg: '#f8fafc', text: '#94a3b8', border: '#e2e8f0', dot: '#cbd5e1' },
+    complete: { bg: 'rgba(74,222,128,0.12)', text: '#4ade80', border: 'rgba(74,222,128,0.3)', dot: '#4ade80' },
+    partial:  { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.3)', dot: '#fbbf24' },
+    missing:  { bg: 'rgba(255,255,255,0.04)', text: '#64748b', border: 'rgba(255,255,255,0.1)', dot: '#475569' },
   }
 
   const labels: Record<Status, string> = {

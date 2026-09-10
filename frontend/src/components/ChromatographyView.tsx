@@ -50,19 +50,19 @@ function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: strin
         {/* Y grid */}
         {yTicks.map(t => (
           <g key={t}>
-            <line x1={padL} y1={toY(t)} x2={W-padR} y2={toY(t)} stroke="#f1f5f9" strokeWidth="0.8"/>
+            <line x1={padL} y1={toY(t)} x2={W-padR} y2={toY(t)} stroke="rgba(255,255,255,0.06)" strokeWidth="0.8"/>
             <text x={padL-5} y={toY(t)+3} textAnchor="end" fontSize="8" fill="#94a3b8" fontFamily="monospace">{t}%</text>
           </g>
         ))}
 
         {/* Axes */}
-        <line x1={padL} y1={padT} x2={padL} y2={H-padB} stroke="#e2e8f0" strokeWidth="0.8"/>
-        <line x1={padL} y1={H-padB} x2={W-padR} y2={H-padB} stroke="#e2e8f0" strokeWidth="0.8"/>
+        <line x1={padL} y1={padT} x2={padL} y2={H-padB} stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"/>
+        <line x1={padL} y1={H-padB} x2={W-padR} y2={H-padB} stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"/>
 
         {/* X ticks — smart spacing */}
         {visibleTicks.map(t => (
           <g key={t}>
-            <line x1={toX(t)} y1={H-padB} x2={toX(t)} y2={H-padB+3} stroke="#cbd5e1" strokeWidth="0.8"/>
+            <line x1={toX(t)} y1={H-padB} x2={toX(t)} y2={H-padB+3} stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
             <text x={toX(t)} y={H-padB+11} textAnchor="middle" fontSize="8" fill="#94a3b8" fontFamily="monospace">{t}</text>
           </g>
         ))}
@@ -96,11 +96,11 @@ function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: strin
             <circle cx={p.x} cy={p.y} r="10" fill="transparent"/>
             {/* %B point */}
             <circle cx={p.x} cy={p.y} r={hoveredIdx === i ? 4 : 2.5}
-              fill="white" stroke="#f97316" strokeWidth="1.5"
+              fill="#0a1526" stroke="#f97316" strokeWidth="1.5"
               style={{transition:'r 0.15s'}}/>
             {/* %A point */}
             <circle cx={ptsA[i].x} cy={ptsA[i].y} r={hoveredIdx === i ? 4 : 2.5}
-              fill="white" stroke="#3b82f6" strokeWidth="1.5"
+              fill="#0a1526" stroke="#3b82f6" strokeWidth="1.5"
               style={{transition:'r 0.15s'}}/>
 
             {/* Tooltip */}
@@ -108,7 +108,7 @@ function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: strin
               <g>
                 <rect x={p.x + 6} y={p.y - 22}
                   width="80" height="36" rx="4"
-                  fill="white" stroke="#e2e8f0" strokeWidth="0.8"
+                  fill="#0a1526" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"
                   style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.08))'}}/>
                 <text x={p.x + 10} y={p.y - 10} fontSize="8" fill="#64748b" fontFamily="monospace">
                   t = {p.t} min
@@ -143,7 +143,7 @@ function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: strin
           <tr>
             {['Time (min)','%A','%B','Flow (mL/min)'].map(h => (
               <th key={h} style={{textAlign:'left',padding:'5px 8px',
-                color:'#94a3b8',fontWeight:'500',borderBottom:'0.5px solid #e5e7eb'}}>
+                color:'#94a3b8',fontWeight:'500',borderBottom:'0.5px solid rgba(255,255,255,0.1)'}}>
                 {h}
               </th>
             ))}
@@ -155,13 +155,13 @@ function GradientChart({ steps, phaseA, phaseB }: { steps: any[], phaseA?: strin
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
               style={{
-                borderBottom:'0.5px solid #f8fafc',
-                background: hoveredIdx === i ? '#fff7ed' : 'transparent',
+                borderBottom:'0.5px solid rgba(255,255,255,0.05)',
+                background: hoveredIdx === i ? 'rgba(251,146,60,0.12)' : 'transparent',
                 cursor: 'default',
                 transition: 'background 0.15s'
               }}>
               <td style={{padding:'5px 8px',fontFamily:'monospace',
-                color: hoveredIdx === i ? '#f97316' : '#334155',fontWeight: hoveredIdx === i ? 600 : 400}}>
+                color: hoveredIdx === i ? '#f97316' : '#f1f5f9',fontWeight: hoveredIdx === i ? 600 : 400}}>
                 {step.time_min}
               </td>
               <td style={{padding:'5px 8px',fontFamily:'monospace',color:'#3b82f6'}}>
@@ -211,9 +211,9 @@ export default function ChromatographyView({ method }: { method: any }) {
 
   const IS = {
     width: '80px', padding: '5px 8px',
-    border: '0.5px solid #d1d5db', borderRadius: '6px',
+    border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '6px',
     fontSize: '13px', fontFamily: 'monospace',
-    background: 'white', color: '#111827'
+    background: 'rgba(255,255,255,0.05)', color: '#f1f5f9'
   } as React.CSSProperties
 
   const parseMP = (mp: string) => {
@@ -227,7 +227,7 @@ export default function ChromatographyView({ method }: { method: any }) {
 
   if (!method.column_brand && !method.mobile_phase_a && !method.gradient_steps?.length) {
     return (
-      <p style={{color:'#9ca3af',fontSize:'0.875rem'}}>
+      <p style={{color:'#64748b',fontSize:'0.875rem'}}>
         No chromatography data recorded.
       </p>
     )
@@ -261,22 +261,22 @@ export default function ChromatographyView({ method }: { method: any }) {
 
       {/* Column card */}
       {(method.column_brand || method.column_name) && (
-        <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
+        <div style={{border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'1rem 1.25rem',background:'rgba(255,255,255,0.03)'}}>
           <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
-            color:'#9ca3af',marginBottom:'12px'}}>Column and hardware</p>
+            color:'#64748b',marginBottom:'12px'}}>Column and hardware</p>
           <div style={{display:'flex',alignItems:'center',gap:'16px',
-            marginBottom:'14px',paddingBottom:'14px',borderBottom:'0.5px solid #e5e7eb'}}>
-            <div style={{width:'40px',height:'40px',borderRadius:'10px',background:'#E6F1FB',
+            marginBottom:'14px',paddingBottom:'14px',borderBottom:'0.5px solid rgba(255,255,255,0.1)'}}>
+            <div style={{width:'40px',height:'40px',borderRadius:'10px',background:'rgba(56,189,248,0.1)',
               display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
               fontSize:'20px'}}>
               🧪
             </div>
             <div>
-              <div style={{fontSize:'12px',color:'#0C447C',marginBottom:'2px'}}>{method.column_brand}</div>
-              <div style={{fontSize:'14px',fontWeight:'500',color:'#111827'}}>{method.column_name}</div>
+              <div style={{fontSize:'12px',color:'#7dd3fc',marginBottom:'2px'}}>{method.column_brand}</div>
+              <div style={{fontSize:'14px',fontWeight:'500',color:'#f1f5f9'}}>{method.column_name}</div>
               {method.column_length_mm && (
                 <div style={{display:'inline-flex',alignItems:'center',gap:'4px',
-                  background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #85B7EB',
+                  background:'rgba(56,189,248,0.1)',color:'#7dd3fc',border:'0.5px solid rgba(56,189,248,0.35)',
                   borderRadius:'20px',padding:'3px 10px',fontSize:'12px',fontWeight:'500',marginTop:'4px'}}>
                   {method.column_length_mm} × {method.column_diameter_mm} mm · {method.column_particle_size_um} µm
                 </div>
@@ -286,8 +286,8 @@ export default function ChromatographyView({ method }: { method: any }) {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
             {method.column_stationary_phase && (
               <div>
-                <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'2px'}}>Stationary phase</p>
-                <p style={{fontSize:'13px',fontWeight:'500',color:'#111827'}}>{method.column_stationary_phase}</p>
+                <p style={{fontSize:'11px',color:'#94a3b8',marginBottom:'2px'}}>Stationary phase</p>
+                <p style={{fontSize:'13px',fontWeight:'500',color:'#f1f5f9'}}>{method.column_stationary_phase}</p>
               </div>
             )}
           </div>
@@ -295,9 +295,9 @@ export default function ChromatographyView({ method }: { method: any }) {
       )}
 
       {/* Operating parameters */}
-      <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
+      <div style={{border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'1rem 1.25rem',background:'rgba(255,255,255,0.03)'}}>
         <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
-          color:'#9ca3af',marginBottom:'12px'}}>Operating parameters</p>
+          color:'#64748b',marginBottom:'12px'}}>Operating parameters</p>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:'8px'}}>
           {[
             {label:'Column temp', value: method.column_temperature_c, unit:'°C'},
@@ -305,13 +305,13 @@ export default function ChromatographyView({ method }: { method: any }) {
             {label:'Flow rate', value: method.gradient_steps?.[0]?.flow_rate_ml_min, unit:'mL/min'},
             {label:'Autosampler temp', value: method.autosampler_temperature_c, unit:'°C'},
           ].map(p => (
-            <div key={p.label} style={{background:'#f9fafb',borderRadius:'8px',padding:'10px 12px'}}>
-              <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'2px'}}>{p.label}</p>
+            <div key={p.label} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'10px 12px'}}>
+              <p style={{fontSize:'11px',color:'#94a3b8',marginBottom:'2px'}}>{p.label}</p>
               {p.value != null
-                ? <p style={{fontSize:'16px',fontWeight:'500',color:'#111827'}}>
-                    {p.value} <span style={{fontSize:'11px',color:'#6b7280',fontWeight:'400'}}>{p.unit}</span>
+                ? <p style={{fontSize:'16px',fontWeight:'500',color:'#f1f5f9'}}>
+                    {p.value} <span style={{fontSize:'11px',color:'#94a3b8',fontWeight:'400'}}>{p.unit}</span>
                   </p>
-                : <p style={{fontSize:'13px',color:'#d1d5db'}}>N/R</p>
+                : <p style={{fontSize:'13px',color:'rgba(255,255,255,0.15)'}}>N/R</p>
               }
             </div>
           ))}
@@ -320,25 +320,25 @@ export default function ChromatographyView({ method }: { method: any }) {
 
       {/* Mobile phases */}
       {(method.mobile_phase_a || method.mobile_phase_b) && (
-        <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
+        <div style={{border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'1rem 1.25rem',background:'rgba(255,255,255,0.03)'}}>
           <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
-            color:'#9ca3af',marginBottom:'12px'}}>Mobile phases</p>
+            color:'#64748b',marginBottom:'12px'}}>Mobile phases</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
             {method.mobile_phase_a && (
-              <div style={{background:'#E6F1FB',border:'0.5px solid #85B7EB',borderRadius:'10px',padding:'12px 14px'}}>
-                <p style={{fontSize:'11px',fontWeight:'500',color:'#0C447C',marginBottom:'6px'}}>Phase A — aqueous</p>
-                <p style={{fontSize:'13px',fontWeight:'500',color:'#185FA5',marginBottom:'4px'}}>{mpA.solvent}</p>
+              <div style={{background:'rgba(56,189,248,0.1)',border:'0.5px solid rgba(56,189,248,0.35)',borderRadius:'10px',padding:'12px 14px'}}>
+                <p style={{fontSize:'11px',fontWeight:'500',color:'#7dd3fc',marginBottom:'6px'}}>Phase A — aqueous</p>
+                <p style={{fontSize:'13px',fontWeight:'500',color:'#7dd3fc',marginBottom:'4px'}}>{mpA.solvent}</p>
                 {mpA.additives.map((a: string, i: number) => (
-                  <p key={i} style={{fontSize:'11px',color:'#374151'}}>+ {a}</p>
+                  <p key={i} style={{fontSize:'11px',color:'#94a3b8'}}>+ {a}</p>
                 ))}
               </div>
             )}
             {method.mobile_phase_b && (
-              <div style={{background:'#FAEEDA',border:'0.5px solid #EF9F27',borderRadius:'10px',padding:'12px 14px'}}>
-                <p style={{fontSize:'11px',fontWeight:'500',color:'#633806',marginBottom:'6px'}}>Phase B — organic</p>
-                <p style={{fontSize:'13px',fontWeight:'500',color:'#854F0B',marginBottom:'4px'}}>{mpB.solvent}</p>
+              <div style={{background:'rgba(251,191,36,0.1)',border:'0.5px solid rgba(251,191,36,0.35)',borderRadius:'10px',padding:'12px 14px'}}>
+                <p style={{fontSize:'11px',fontWeight:'500',color:'#fbbf24',marginBottom:'6px'}}>Phase B — organic</p>
+                <p style={{fontSize:'13px',fontWeight:'500',color:'#fbbf24',marginBottom:'4px'}}>{mpB.solvent}</p>
                 {mpB.additives.map((a: string, i: number) => (
-                  <p key={i} style={{fontSize:'11px',color:'#374151'}}>+ {a}</p>
+                  <p key={i} style={{fontSize:'11px',color:'#94a3b8'}}>+ {a}</p>
                 ))}
               </div>
             )}
@@ -348,18 +348,18 @@ export default function ChromatographyView({ method }: { method: any }) {
 
       {/* Gradient */}
       {method.gradient_steps?.length > 0 && (
-        <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
+        <div style={{border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'1rem 1.25rem',background:'rgba(255,255,255,0.03)'}}>
           <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
-            color:'#9ca3af',marginBottom:'12px'}}>Gradient program</p>
+            color:'#64748b',marginBottom:'12px'}}>Gradient program</p>
 
           <GradientChart steps={method.gradient_steps} phaseA={method.mobile_phase_a} phaseB={method.mobile_phase_b} />
         </div>
       )}
 
       {/* Calculator */}
-      <div style={{border:'0.5px solid #e5e7eb',borderRadius:'12px',padding:'1rem 1.25rem',background:'white'}}>
+      <div style={{border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'1rem 1.25rem',background:'rgba(255,255,255,0.03)'}}>
         <p style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.06em',
-          color:'#9ca3af',marginBottom:'12px'}}>Mobile phase consumption calculator</p>
+          color:'#64748b',marginBottom:'12px'}}>Mobile phase consumption calculator</p>
 
         <div style={{display:'flex',flexWrap:'wrap',gap:'10px',marginBottom:'14px'}}>
           {[
@@ -370,7 +370,7 @@ export default function ChromatographyView({ method }: { method: any }) {
             {label:'Avg %B', val: avgB, set: setAvgB, step: 1, min: 0, max: 100},
           ].map(p => (
             <div key={p.label} style={{display:'flex',flexDirection:'column',gap:'3px'}}>
-              <span style={{fontSize:'11px',color:'#6b7280'}}>{p.label}</span>
+              <span style={{fontSize:'11px',color:'#94a3b8'}}>{p.label}</span>
               <input type="number" style={IS} value={p.val}
                 step={p.step} min={p.min} max={p.max}
                 onChange={e => p.set(parseFloat(e.target.value) || 0)} />
@@ -379,26 +379,26 @@ export default function ChromatographyView({ method }: { method: any }) {
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-          <div style={{background:'#E6F1FB',border:'0.5px solid #85B7EB',borderRadius:'10px',padding:'14px 16px'}}>
-            <p style={{fontSize:'11px',fontWeight:'500',color:'#0C447C',marginBottom:'4px'}}>Phase A consumed</p>
-            <p style={{fontSize:'22px',fontWeight:'500',color:'#185FA5'}}>
-              {volA.toFixed(1)} <span style={{fontSize:'12px',color:'#6b7280',fontWeight:'400'}}>mL</span>
+          <div style={{background:'rgba(56,189,248,0.1)',border:'0.5px solid rgba(56,189,248,0.35)',borderRadius:'10px',padding:'14px 16px'}}>
+            <p style={{fontSize:'11px',fontWeight:'500',color:'#7dd3fc',marginBottom:'4px'}}>Phase A consumed</p>
+            <p style={{fontSize:'22px',fontWeight:'500',color:'#7dd3fc'}}>
+              {volA.toFixed(1)} <span style={{fontSize:'12px',color:'#94a3b8',fontWeight:'400'}}>mL</span>
             </p>
-            <p style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>avg {100-avgB}% per run · {nSamples} samples</p>
+            <p style={{fontSize:'11px',color:'#94a3b8',marginTop:'2px'}}>avg {100-avgB}% per run · {nSamples} samples</p>
           </div>
-          <div style={{background:'#FAEEDA',border:'0.5px solid #EF9F27',borderRadius:'10px',padding:'14px 16px'}}>
-            <p style={{fontSize:'11px',fontWeight:'500',color:'#633806',marginBottom:'4px'}}>Phase B consumed</p>
-            <p style={{fontSize:'22px',fontWeight:'500',color:'#854F0B'}}>
-              {volB.toFixed(1)} <span style={{fontSize:'12px',color:'#6b7280',fontWeight:'400'}}>mL</span>
+          <div style={{background:'rgba(251,191,36,0.1)',border:'0.5px solid rgba(251,191,36,0.35)',borderRadius:'10px',padding:'14px 16px'}}>
+            <p style={{fontSize:'11px',fontWeight:'500',color:'#fbbf24',marginBottom:'4px'}}>Phase B consumed</p>
+            <p style={{fontSize:'22px',fontWeight:'500',color:'#fbbf24'}}>
+              {volB.toFixed(1)} <span style={{fontSize:'12px',color:'#94a3b8',fontWeight:'400'}}>mL</span>
             </p>
-            <p style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>avg {avgB}% per run · {nSamples} samples</p>
+            <p style={{fontSize:'11px',color:'#94a3b8',marginTop:'2px'}}>avg {avgB}% per run · {nSamples} samples</p>
           </div>
         </div>
 
-        <div style={{padding:'10px 14px',background:'#f9fafb',borderRadius:'8px',
-          display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:'12px',color:'#6b7280'}}>
+        <div style={{padding:'10px 14px',background:'rgba(255,255,255,0.04)',borderRadius:'8px',
+          display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:'12px',color:'#94a3b8'}}>
           <span>Total solvent consumed</span>
-          <strong style={{fontSize:'14px',color:'#111827'}}>{totalVol.toFixed(1)} mL</strong>
+          <strong style={{fontSize:'14px',color:'#f1f5f9'}}>{totalVol.toFixed(1)} mL</strong>
         </div>
       </div>
     </div>

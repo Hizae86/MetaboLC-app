@@ -15,15 +15,15 @@ interface Compound {
   method_count: number
 }
 
-const MATRIX_CLS: Record<string, { bg: string; text: string }> = {
-  plasma:             { bg: '#fef2f2', text: '#b91c1c' },
-  serum:              { bg: '#fff7ed', text: '#c2410c' },
-  urine:              { bg: '#fefce8', text: '#a16207' },
-  'whole blood':      { bg: '#fef2f2', text: '#991b1b' },
-  'dried blood spot': { bg: '#fdf4ff', text: '#7e22ce' },
-  csf:                { bg: '#eff6ff', text: '#1e40af' },
-  saliva:             { bg: '#f0fdf4', text: '#15803d' },
-  other:              { bg: '#f8fafc', text: '#475569' },
+const MATRIX_CLS: Record<string, { bg: string; text: string; border: string }> = {
+  plasma:             { bg: 'rgba(248,113,113,0.12)', text: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  serum:              { bg: 'rgba(251,146,60,0.12)',  text: '#fb923c', border: 'rgba(251,146,60,0.3)' },
+  urine:              { bg: 'rgba(250,204,21,0.12)',  text: '#facc15', border: 'rgba(250,204,21,0.3)' },
+  'whole blood':      { bg: 'rgba(192,132,252,0.12)', text: '#c084fc', border: 'rgba(192,132,252,0.3)' },
+  'dried blood spot': { bg: 'rgba(244,114,182,0.12)', text: '#f472b6', border: 'rgba(244,114,182,0.3)' },
+  csf:                { bg: 'rgba(125,211,252,0.12)', text: '#7dd3fc', border: 'rgba(125,211,252,0.3)' },
+  saliva:             { bg: 'rgba(74,222,128,0.12)',  text: '#4ade80', border: 'rgba(74,222,128,0.3)' },
+  other:              { bg: 'rgba(255,255,255,0.06)', text: '#94a3b8', border: 'rgba(255,255,255,0.12)' },
 }
 
 export default function CompoundIndex() {
@@ -55,7 +55,6 @@ export default function CompoundIndex() {
       .compounds-page .text-slate-400 { color: #475569 !important; }
       .compounds-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
       .compounds-page input { color: #e2e8f0 !important; }
-      .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
       .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
     `}</style>
     <div className='compounds-page' style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}}>
@@ -93,30 +92,35 @@ export default function CompoundIndex() {
           {filtered.map(c => (
             <div key={c.normalized}
               className="bg-white border border-slate-200 rounded-xl overflow-hidden
-                hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5
+                hover:border-indigo-400/40 hover:shadow-md hover:-translate-y-0.5
                 transition-all duration-200 flex flex-col">
 
               {/* Structure image */}
-              <div className="flex items-center justify-center p-3"
-                style={{height:'120px', background:'#000000'}}>
-                {c.pubchem_cid && c.pubchem_cid > 0 && !imgErrors.has(c.pubchem_cid) ? (
-                  <img
-                    src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${c.pubchem_cid}/PNG`}
-                    alt={c.name}
-                    loading="lazy"
-                    style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}}
-                    onError={() => setImgErrors(prev => new Set([...prev, c.pubchem_cid!]))}
-                    onLoad={e => (e.currentTarget.style.opacity = '1')}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <FlaskConical size={24} className="text-slate-300" />
-                    {c.formula && (
-                      <span className="text-xs font-mono text-slate-400">{c.formula}</span>
+              {(() => {
+                const hasImg = !!(c.pubchem_cid && c.pubchem_cid > 0 && !imgErrors.has(c.pubchem_cid))
+                return (
+                  <div className="flex items-center justify-center p-3"
+                    style={{height:'120px', background: hasImg ? '#000000' : 'rgba(255,255,255,0.03)'}}>
+                    {hasImg ? (
+                      <img
+                        src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${c.pubchem_cid}/PNG`}
+                        alt={c.name}
+                        loading="lazy"
+                        style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}}
+                        onError={() => setImgErrors(prev => new Set([...prev, c.pubchem_cid!]))}
+                        onLoad={e => (e.currentTarget.style.opacity = '1')}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <FlaskConical size={24} className="text-slate-600" />
+                        {c.formula && (
+                          <span className="text-xs font-mono text-slate-500">{c.formula}</span>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
+                )
+              })()}
 
               {/* Info */}
               <div className="p-3 flex flex-col flex-1">
@@ -128,7 +132,8 @@ export default function CompoundIndex() {
                 {/* Formula + mass in one line */}
                 <div className="flex items-center gap-1.5 mb-2">
                   {c.formula && (
-                    <span className="text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                    <span className="text-xs font-mono px-1.5 py-0.5 rounded-md"
+                      style={{background:'rgba(129,140,248,0.12)', color:'#a5b4fc', border:'1px solid rgba(129,140,248,0.25)'}}>
                       {c.formula}
                     </span>
                   )}
@@ -151,7 +156,7 @@ export default function CompoundIndex() {
                         return (
                           <span key={matrix}
                             className="text-xs px-1.5 py-0.5 rounded-md font-medium truncate max-w-[70px]"
-                            style={{background: mc.bg, color: mc.text}} title={matrix}>
+                            style={{background: mc.bg, color: mc.text, border: `1px solid ${mc.border}`}} title={matrix}>
                             {matrix}
                           </span>
                         )
@@ -164,7 +169,7 @@ export default function CompoundIndex() {
                 })()}
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
                   <span className="text-xs text-slate-500 font-medium">
                     {c.method_count} method{c.method_count !== 1 ? 's' : ''}
                   </span>

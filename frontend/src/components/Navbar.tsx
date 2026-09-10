@@ -20,69 +20,69 @@ function ToolsDropdown({ active }: { active: boolean }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-slate-200
-            rounded-xl shadow-xl z-50 overflow-hidden">
-            <div className="px-3 py-2 border-b border-slate-100">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tools</p>
+          <div className="absolute top-full left-0 mt-2 w-56 bg-[#0e1b2e] border border-white/10
+            rounded-xl shadow-xl z-50 overflow-hidden" style={{boxShadow:'0 20px 50px rgba(0,0,0,0.5)'}}>
+            <div className="px-3 py-2 border-b border-white/10">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tools</p>
             </div>
             <Link to="/tools/method-transfer"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                hover:bg-indigo-50 hover:text-indigo-700 transition-colors no-underline border-b border-slate-50">
-              <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                <ArrowRight size={13} className="text-indigo-600" />
+              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline border-b border-white/5">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+                <ArrowRight size={13} className="text-indigo-300" />
               </div>
               <div>
                 <p className="text-xs font-semibold">Method Transfer</p>
-                <p className="text-xs text-slate-400">HPLC → UHPLC scaling</p>
+                <p className="text-xs text-slate-500">HPLC → UHPLC scaling</p>
               </div>
             </Link>
             <Link to="/tools/mass-calculator"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                hover:bg-indigo-50 hover:text-indigo-700 transition-colors no-underline">
-              <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                <Calculator size={13} className="text-indigo-600" />
+              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+                <Calculator size={13} className="text-indigo-300" />
               </div>
               <div>
                 <p className="text-xs font-semibold">Mass Calculator</p>
-                <p className="text-xs text-slate-400">Monoisotopic mass & adducts</p>
+                <p className="text-xs text-slate-500">Monoisotopic mass & adducts</p>
               </div>
             </Link>
               <Link to="/tools/dilution-calculator"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                  hover:bg-teal-50 hover:text-teal-700 transition-colors no-underline border-b border-slate-50">
-                <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-                  <FlaskConical size={13} className="text-teal-600" />
+                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                  hover:bg-teal-500/10 hover:text-teal-300 transition-colors no-underline border-b border-white/5">
+                <div className="w-7 h-7 rounded-lg bg-teal-500/15 flex items-center justify-center shrink-0">
+                  <FlaskConical size={13} className="text-teal-300" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold">Dilution Calculator</p>
-                  <p className="text-xs text-slate-400">QC & calibrator preparation</p>
+                  <p className="text-xs text-slate-500">QC & calibrator preparation</p>
                 </div>
               </Link>
               <Link to="/tools/matrix-effect"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                  hover:bg-orange-50 hover:text-orange-700 transition-colors no-underline border-b border-slate-50">
-                <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                  hover:bg-orange-500/10 hover:text-orange-300 transition-colors no-underline border-b border-white/5">
+                <div className="w-7 h-7 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
                   <span className="text-sm">⚗️</span>
                 </div>
                 <div>
                   <p className="text-xs font-semibold">Matrix Effect & Recovery</p>
-                  <p className="text-xs text-slate-400">Ion suppression & extraction efficiency</p>
+                  <p className="text-xs text-slate-500">Ion suppression & extraction efficiency</p>
                 </div>
               </Link>
               <Link to="/tools/rt-predictor"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700
-                  hover:bg-indigo-50 hover:text-indigo-700 transition-colors no-underline">
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                  <Clock size={13} className="text-indigo-600" />
+                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                  hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+                  <Clock size={13} className="text-indigo-300" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold">RT Predictor</p>
-                  <p className="text-xs text-slate-400">logP & gradient estimate</p>
+                  <p className="text-xs text-slate-500">logP & gradient estimate</p>
                 </div>
               </Link>
           </div>
@@ -119,13 +119,13 @@ export default function Navbar() {
               <span className="font-bold text-white text-lg tracking-tight">MetaboLC</span>
               <span style={{
                 fontSize:'10px', fontWeight:600, letterSpacing:'0.06em',
-                color:'#4f46e5', background:'#eef2ff',
+                color:'#a5b4fc', background:'rgba(99,102,241,0.15)',
                 padding:'2px 7px', borderRadius:'20px',
-                border:'1px solid #c7d2fe', lineHeight:'1.4',
+                border:'1px solid rgba(99,102,241,0.35)', lineHeight:'1.4',
                 verticalAlign:'middle'
               }}>BETA</span>
             </div>
-            <span className="text-xs tracking-wide -mt-0.5 block" style={{color:"#334155"}}>
+            <span className="text-xs tracking-wide -mt-0.5 block" style={{color:"#64748b"}}>
               LC-MS/MS Method Reference Library
             </span>
           </div>
@@ -151,15 +151,15 @@ export default function Navbar() {
 
           <ToolsDropdown active={location.pathname.startsWith('/tools')} />
 
-          <div className="w-px h-5 bg-slate-200 mx-2" />
+          <div className="w-px h-5 bg-white/10 mx-2" />
 
           {/* Dra. Massa */}
           <Link to="/advisor"
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
               transition-all duration-150 no-underline border
               ${active('/advisor')
-                ? 'bg-violet-100 text-violet-700 border-violet-300'
-                : 'text-violet-600 border-violet-200 bg-violet-50 hover:bg-violet-100'}`}>
+                ? 'bg-violet-500/15 text-violet-200 border-violet-400/40'
+                : 'text-violet-300 border-violet-400/25 bg-violet-500/10 hover:bg-violet-500/20'}`}>
             <Sparkles size={15} />
             Dra. Massa
           </Link>

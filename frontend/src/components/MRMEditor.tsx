@@ -109,8 +109,8 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         <button onClick={() => update(rowIdx, field, t.is_quantifier ? 0 : 1)}
           className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-all
             ${t.is_quantifier
-              ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
-              : 'bg-orange-50 text-orange-600 ring-1 ring-orange-200'}`}>
+              ? 'bg-green-500/15 text-green-300 ring-1 ring-green-400/40'
+              : 'bg-orange-500/10 text-orange-300 ring-1 ring-orange-400/30'}`}>
           {t.is_quantifier ? 'Quan' : 'Qual'}
         </button>
       )
@@ -122,7 +122,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         .map((t: any) => t.compound_name?.trim())
         .filter(Boolean))] as string[]
       if (isCompounds.length === 0) return (
-        <div className="px-2 py-1 text-xs text-slate-300">No IS</div>
+        <div className="px-2 py-1 text-xs text-slate-600">No IS</div>
       )
       const t = trans[rowIdx]
       if (t.is_internal_standard) return null
@@ -142,11 +142,11 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         <select
           value={currentVal}
           onChange={e => update(rowIdx, 'assigned_is', e.target.value || null)}
-          className="w-full text-xs px-1.5 py-1 border border-slate-200 rounded bg-white
-            focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700">
-          <option value="">— none —</option>
+          className="w-full text-xs px-1.5 py-1 border border-white/15 rounded bg-white/5
+            focus:outline-none focus:ring-1 focus:ring-indigo-400 text-slate-300">
+          <option value="" style={{background:'#0e1b2e'}}>— none —</option>
           {isCompounds.map((name: string) => (
-            <option key={name} value={name}>{name}</option>
+            <option key={name} value={name} style={{background:'#0e1b2e'}}>{name}</option>
           ))}
         </select>
       )
@@ -157,8 +157,8 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         <button onClick={() => update(rowIdx, field, (t.polarity || 'ESI+') === 'ESI+' ? 'ESI-' : 'ESI+')}
           className={`text-xs font-medium px-1.5 py-0.5 rounded transition-all
             ${(t.polarity || 'ESI+') === 'ESI+'
-              ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200'
-              : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
+              ? 'bg-sky-500/10 text-sky-300 ring-1 ring-sky-400/30'
+              : 'bg-red-500/10 text-red-300 ring-1 ring-red-400/30'}`}>
           {t.polarity || 'ESI+'}
         </button>
       )
@@ -170,46 +170,46 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         onBlur={() => setActive(null)}
         onKeyDown={e => handleKeyDown(e, rowIdx, colIdx)}
         onPaste={e => handlePaste(e, rowIdx, colIdx)}
-        className={`w-full h-full px-1.5 py-1 text-xs outline-none border-2 border-blue-500 rounded bg-blue-50
+        className={`w-full h-full px-1.5 py-1 text-xs outline-none border-2 border-sky-400 rounded bg-sky-500/10 text-slate-100
           ${numeric ? 'text-right font-mono' : 'text-left'}`}
       />
     )
 
     return (
       <div onClick={() => setActive({ r: rowIdx, c: colIdx })}
-        className={`px-1.5 py-1 text-xs rounded cursor-text hover:bg-blue-50 transition-colors min-h-[24px]
+        className={`px-1.5 py-1 text-xs rounded cursor-text hover:bg-sky-500/10 transition-colors min-h-[24px]
           ${numeric ? 'text-right font-mono' : 'text-left'}
-          ${val === '' || val === null ? 'text-slate-300' : 'text-slate-700'}`}>
+          ${val === '' || val === null ? 'text-slate-600' : 'text-slate-300'}`}>
         {val === '' || val === null ? '—' : val}
       </div>
     )
   }
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-white/10 rounded-xl overflow-hidden bg-white/[0.03]">
       {/* Scrollable container */}
       <div style={{ maxHeight: '420px', overflowY: 'auto', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
 
           {/* Sticky header */}
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 600, fontSize: '11px', minWidth: '140px', whiteSpace: 'nowrap' }}>
+            <tr style={{ background: '#0e1b2e', borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+              <th style={{ textAlign: 'left', padding: '8px 12px', color: '#94a3b8', fontWeight: 600, fontSize: '11px', minWidth: '140px', whiteSpace: 'nowrap' }}>
                 Compound
               </th>
               {dataCols.map(col => (
                 <th key={col.field}
-                  style={{ textAlign: col.field === 'is_quantifier' || col.field === 'polarity' ? 'center' : 'right', padding: '8px 6px', color: '#64748b', fontWeight: 600, fontSize: '11px', minWidth: col.width, whiteSpace: 'nowrap' }}>
+                  style={{ textAlign: col.field === 'is_quantifier' || col.field === 'polarity' ? 'center' : 'right', padding: '8px 6px', color: '#94a3b8', fontWeight: 600, fontSize: '11px', minWidth: col.width, whiteSpace: 'nowrap' }}>
                   <div className="flex items-center justify-end gap-1">
                     {col.label}
                     {col.field !== 'is_quantifier' && col.field !== 'polarity' && (
                       <div className="relative">
                         <button onClick={() => setFillMenu(fillMenu === col.field ? null : col.field)}
-                          className="text-slate-300 hover:text-indigo-500 transition-colors text-xs">▼</button>
+                          className="text-slate-600 hover:text-indigo-400 transition-colors text-xs">▼</button>
                         {fillMenu === col.field && (
-                          <div className="absolute right-0 top-5 bg-white border border-slate-200 rounded-lg shadow-lg z-20 w-36 p-1">
-                            <p className="text-xs text-slate-400 px-2 py-1">Fill all with:</p>
-                            <input autoFocus className="w-full text-xs px-2 py-1 border-b border-slate-100 outline-none"
+                          <div className="absolute right-0 top-5 bg-[#0e1b2e] border border-white/10 rounded-lg shadow-lg z-20 w-36 p-1">
+                            <p className="text-xs text-slate-500 px-2 py-1">Fill all with:</p>
+                            <input autoFocus className="w-full text-xs px-2 py-1 border-b border-white/10 outline-none bg-transparent text-slate-100"
                               placeholder="value…"
                               onKeyDown={e => {
                                 if (e.key === 'Enter') fillColumn(col.field, (e.target as HTMLInputElement).value)
@@ -233,30 +233,30 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                 {gi > 0 && (
                   <tr key={`sep-${gi}`}>
                     <td colSpan={dataCols.length + 2}
-                      style={{ height: '2px', background: 'linear-gradient(to right, #e2e8f0 60%, transparent)', padding: 0 }} />
+                      style={{ height: '2px', background: 'linear-gradient(to right, rgba(255,255,255,0.15) 60%, transparent)', padding: 0 }} />
                   </tr>
                 )}
 
                 {group.rows.map(({ t, idx }, ri) => (
                   <tr key={idx}
-                    style={{ height: '34px', background: group.isIS ? '#faf5ff' : gi % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                    style={{ height: '34px', background: group.isIS ? 'rgba(168,85,247,0.08)' : gi % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
 
                     {/* Compound name — only first row of group */}
                     <td style={{ padding: '4px 12px', verticalAlign: 'middle' }}>
                       {ri === 0 ? (
                         <div className="flex items-center gap-2">
                           {group.isIS ? (
-                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium shrink-0">IS</span>
+                            <span className="text-xs bg-purple-500/15 text-purple-300 px-1.5 py-0.5 rounded font-medium shrink-0">IS</span>
                           ) : (
-                            <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium shrink-0">Ana</span>
+                            <span className="text-xs bg-white/10 text-slate-400 px-1.5 py-0.5 rounded font-medium shrink-0">Ana</span>
                           )}
                           <input value={t.compound_name || ''}
                             onChange={e => update(idx, 'compound_name', e.target.value)}
-                            className="text-xs font-medium text-slate-800 bg-transparent border-none outline-none w-full"
+                            className="text-xs font-medium text-slate-100 bg-transparent border-none outline-none w-full"
                             placeholder="Compound name" />
                         </div>
                       ) : (
-                        <div className="pl-8 text-xs text-slate-300">↳ qualifier</div>
+                        <div className="pl-8 text-xs text-slate-600">↳ qualifier</div>
                       )}
                     </td>
 
@@ -270,7 +270,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                     {/* Delete */}
                     <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '2px' }}>
                       <button onClick={() => setTrans(trans.filter((_, i) => i !== idx))}
-                        className="text-slate-200 hover:text-red-400 transition-colors text-base leading-none px-1">
+                        className="text-slate-600 hover:text-red-400 transition-colors text-base leading-none px-1">
                         ×
                       </button>
                     </td>
@@ -292,7 +292,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                         })
                         setTrans(newTrans)
                       }}
-                      className="text-xs text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1">
+                      className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
                       <span className="text-base leading-none">+</span> add transition
                     </button>
                   </td>
@@ -304,7 +304,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="flex gap-4 px-3 py-2 bg-slate-50 border-t border-slate-100 text-xs text-slate-400">
+      <div className="flex gap-4 px-3 py-2 bg-white/5 border-t border-white/10 text-xs text-slate-500">
         <span>Tab / Shift+Tab — next/prev</span>
         <span>Enter / ↑↓ — move rows</span>
         <span>Paste TSV from Excel</span>
