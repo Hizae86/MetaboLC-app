@@ -434,10 +434,25 @@ export default function MethodDetail() {
                 {method.clinical_application}
               </span>
             )}
+            {method.validation_level && (() => {
+              const VL: Record<string,{bg:string,color:string}> = {
+                'ISO 15189': {bg:'rgba(125,211,252,0.15)', color:'#7dd3fc'},
+                'CE-IVD': {bg:'rgba(192,132,252,0.15)', color:'#c084fc'},
+                'RUO': {bg:'rgba(255,255,255,0.05)', color:'#94a3b8'},
+                'In development': {bg:'rgba(251,191,36,0.12)', color:'#fbbf24'},
+              }
+              const vl = VL[method.validation_level] || VL['RUO']
+              return <span title="Validation level" style={{fontSize:'11px',fontWeight:'600',padding:'3px 10px',borderRadius:'20px',
+                background:vl.bg,color:vl.color,border:`0.5px solid ${vl.color}40`}}>
+                {method.validation_level}
+              </span>
+            })()}
             {method.status==='verified' && (
-              <span className="flex items-center gap-1" style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'20px',
+              <span className="flex items-center gap-1"
+                title={method.verified_at ? `Verified by ${method.verified_by || 'admin'} on ${new Date(method.verified_at).toLocaleDateString()}` : 'Verified'}
+                style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'20px',
                 background:'rgba(74,222,128,0.12)',color:'#4ade80',border:'0.5px solid rgba(74,222,128,0.4)'}}>
-                <CheckCircle size={11} /> Verified
+                <CheckCircle size={11} /> Verified{method.verified_by ? ` · ${method.verified_by}` : ''}
               </span>
             )}
             <div className="ml-auto flex items-center gap-2">

@@ -87,7 +87,20 @@ class Method(Base):
     nozzle_voltage_v = Column(Float, nullable=True)
     curtain_gas = Column(Float, nullable=True)
     collision_gas = Column(String(50), nullable=True)
-    
+    # Thermo Orbitrap full-scan / ddMS2 parameters (used by the MethodDetail
+    # edit form and the submission form; these columns already existed in
+    # the live database but were never declared here, which meant every
+    # edit to a Thermo method silently dropped these values on save — see
+    # the note in update_method()/create_method() for the write side)
+    capillary_temp_c = Column(Float, nullable=True)
+    s_lens_rf_level = Column(Float, nullable=True)
+    data_acquisition_mode = Column(String(100), nullable=True)
+    fullms_resolution = Column(Float, nullable=True)
+    fullms_scan_range = Column(String(50), nullable=True)
+    ddms2_resolution = Column(Float, nullable=True)
+    ddms2_isolation_window = Column(Float, nullable=True)
+    nce_stepped = Column(String(50), nullable=True)
+
     # Sample prep
     sample_prep_method = Column(String(100), nullable=True)
     sample_prep_details = Column(Text, nullable=True)
@@ -104,6 +117,10 @@ class Method(Base):
     sop_pdf = Column(String(500), nullable=True)
     
     # Metadata
+    # ISO 15189 / CE-IVD / RUO / In development — already asked on the
+    # submission form (SubmitMethod.tsx) but had no column to land in, so
+    # it was silently dropped on every submission until now.
+    validation_level = Column(String(50), default='RUO')
     laboratory = Column(String(200), nullable=True)
     country = Column(String(100), nullable=True)
     reference = Column(Text, nullable=True)
@@ -116,6 +133,14 @@ class Method(Base):
     validation_units = Column(String(20), default='ng/mL')
     chromatogram_svg = Column(Text, nullable=True)
     status = Column(String(20), default="pending")
+    # Who verified this method and when (set by PUT /{id}/verify). This
+    # column already existed in the live database but was never declared
+    # here: SQLAlchemy only persists mapped columns, so every call to
+    # verify_method() was flipping `status` correctly while silently
+    # discarding verified_by/verified_at on commit — 80 methods ended up
+    # marked "verified" with no record of who verified them or when.
+    verified_by = Column(String(100), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -166,6 +191,7 @@ class MRMTransition(Base):
     q1_pre_bias = Column(Float, nullable=True)
     q3_pre_bias = Column(Float, nullable=True)
     derivative = Column(String(50), nullable=True)
+    is_derivatized = Column(Integer, default=0)  # already in the live DB, not previously declared
     # PubChem enrichment
     pubchem_cid = Column(Integer, nullable=True)
     pubchem_formula = Column(String(100), nullable=True)

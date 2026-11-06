@@ -134,6 +134,7 @@ class MethodCreate(BaseModel):
     is_derivatized: Optional[int] = 0
     validation_units: Optional[str] = None
     analyte_normalized: Optional[str] = None
+    validation_level: Optional[str] = "RUO"
 
 class GradientStepResponse(GradientStepSchema):
     id: int
@@ -222,9 +223,10 @@ class MethodResponse(BaseModel):
     submitted_by: Optional[str] = None
     status: Optional[str] = None
     verified_by: Optional[str] = None
-    verified_at: Optional[str] = None
+    verified_at: Optional[datetime] = None
     validation_units: Optional[str] = None
     is_derivatized: Optional[int] = 0
+    validation_level: Optional[str] = "RUO"
     gradient_steps: List[GradientStepResponse] = []
     mrm_transitions: List[MRMTransitionResponse] = []
     class Config:
