@@ -18,6 +18,7 @@ import { SectionBadges } from '../components/CompletenessScore'
 import ValidationView from '../components/ValidationView'
 import ValidationEditor from '../components/ValidationEditor'
 import MRMEditor from '../components/MRMEditor'
+import SEO from '../components/SEO'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
@@ -145,16 +146,42 @@ const NR = () => <span style={{color:'rgba(255,255,255,0.18)',fontSize:'0.7rem'}
 
 const val = (v: any) => v !== null && v !== undefined ? v : <NR />
 
-const SUPERUSER_PASSWORD = 'metabolc2024'
+const ADMIN_KEY_STORAGE = 'metabolc_admin_key'
+
+// Attaches the admin key (if the user entered one this session) as a
+// header on write requests. The backend checks this for real now — a
+// wrong or missing key is rejected server-side, this is no longer just a
+// client-side password prompt.
+const adminConfig = () => {
+  const key = sessionStorage.getItem(ADMIN_KEY_STORAGE)
+  return key ? { headers: { 'X-Admin-Key': key } } : {}
+}
+
+// 401 from the backend = the stored key is wrong, expired, or was never
+// set. Clear it and drop back out of admin mode instead of leaving the
+// edit UI visible while every save silently fails.
+const handleAuthError = (err: any, setIsSuperUser: (v: boolean) => void) => {
+  if (err?.response?.status === 401) {
+    sessionStorage.removeItem(ADMIN_KEY_STORAGE)
+    setIsSuperUser(false)
+    window.alert('Your admin key is invalid or expired. Please log in again.')
+    return true
+  }
+  return false
+}
 
 export default function MethodDetail() {
-  const [isSuperUser, setIsSuperUser] = useState(false)
-  const handleSuperUserLogin = () => {
-    const pwd = window.prompt('Enter superuser password:')
-    if (pwd === SUPERUSER_PASSWORD) {
+  const [isSuperUser, setIsSuperUser] = useState(() => !!sessionStorage.getItem(ADMIN_KEY_STORAGE))
+  const handleSuperUserLogin = async () => {
+    const key = window.prompt('Enter admin key:')
+    if (!key) return
+    try {
+      // Verify against the backend (no side effects) before unlocking the edit UI.
+      await axios.get(`${API}/methods/admin/ping`, { headers: { 'X-Admin-Key': key } })
+      sessionStorage.setItem(ADMIN_KEY_STORAGE, key)
       setIsSuperUser(true)
-    } else if (pwd !== null) {
-      window.alert('Incorrect password')
+    } catch (err) {
+      window.alert('Incorrect admin key.')
     }
   }
   const { id } = useParams()
@@ -248,7 +275,7 @@ export default function MethodDetail() {
         }
       })
       console.log('Saving MS fields:', {aux: cleanEf.aux_gas_flow, sweep: cleanEf.sweep_gas_flow, ion: cleanEf.ion_transfer_tube_temp_c, vap: cleanEf.vaporizer_temp_c})
-      await axios.put(`${API}/methods/${id}`, { ...cleanEf, gradient_steps: [], mrm_transitions: [] })
+      await axios.put(`${API}/methods/${id}`, { ...cleanEf, gradient_steps: [], mrm_transitions: [] }, adminConfig())
 
       const cleanGrad = grad
         .filter(s => s.time_min !== '' && s.percent_b !== '')
@@ -258,7 +285,7 @@ export default function MethodDetail() {
           flow_rate_ml_min: s.flow_rate_ml_min ? parseFloat(s.flow_rate_ml_min) : null,
           curve: s.curve || 'linear'
         }))
-      await axios.put(`${API}/methods/${id}/gradient`, { steps: cleanGrad })
+      await axios.put(`${API}/methods/${id}/gradient`, { steps: cleanGrad }, adminConfig())
 
       const cleanTrans = trans
         .filter(t => t.compound_name && t.precursor_mz && t.product_mz)
@@ -283,33 +310,37 @@ export default function MethodDetail() {
           polarity: t.polarity || 'ESI+',
           assigned_is: t.assigned_is || null,
         }))
-      await axios.put(`${API}/methods/${id}/transitions`, { transitions: cleanTrans })
-      await axios.put(`${API}/methods/${id}/validation`, { items: validation.filter((v:any)=>v.compound_name) })
+      await axios.put(`${API}/methods/${id}/transitions`, { transitions: cleanTrans }, adminConfig())
+      await axios.put(`${API}/methods/${id}/validation`, { items: validation.filter((v:any)=>v.compound_name) }, adminConfig())
 
       await fetchMethod()
       setEditing(false)
     } catch(err) {
-      console.error(err)
-      alert('Error saving.')
+      if (!handleAuthError(err, setIsSuperUser)) {
+        console.error(err)
+        alert('Error saving.')
+      }
     } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this method? This cannot be undone.')) return
     try {
-      await axios.delete(`${API}/methods/${id}`)
+      await axios.delete(`${API}/methods/${id}`, adminConfig())
       window.location.href = '/'
     } catch(err) {
-      alert('Error deleting method.')
+      if (!handleAuthError(err, setIsSuperUser)) alert('Error deleting method.')
     }
   }
 
   const handleVerify = async () => {
     try {
-      const res = await axios.put(`${API}/methods/${id}/verify`)
+      const res = await axios.put(`${API}/methods/${id}/verify`, null, adminConfig())
       setMethod((prev: any) => ({...prev, status: res.data.status,
         verified_by: res.data.verified_by, verified_at: res.data.verified_at}))
-    } catch(err) { console.error(err) }
+    } catch(err) {
+      if (!handleAuthError(err, setIsSuperUser)) console.error(err)
+    }
   }
 
   const exportMRM = async () => {
@@ -358,8 +389,16 @@ export default function MethodDetail() {
     return null
   }
 
+  const seoTitle = method.title || `${method.analyte || 'Method'} in ${method.matrix || 'sample'}`
+  const seoDescription = [
+    method.analyte && method.matrix ? `${method.analyte} in ${method.matrix}` : null,
+    method.instrument_manufacturer ? `on ${method.instrument_manufacturer} ${method.instrument_model || ''}`.trim() : null,
+    method.lloq ? `LLOQ ${method.lloq} ${method.lloq_unit || 'ng/mL'}` : null,
+  ].filter(Boolean).join(' · ') || undefined
+
   return (
     <div style={{maxWidth:'900px',margin:'0 auto'}}>
+      <SEO title={seoTitle} description={seoDescription} />
       <Link to="/" style={{color:'#38bdf8',fontSize:'0.875rem',textDecoration:'none',display:'block',marginBottom:'1.5rem'}}>
         ← Back to repository
       </Link>
@@ -377,7 +416,7 @@ export default function MethodDetail() {
             {(() => {
               const MS: Record<string,{bg:string,color:string}> = {
                 plasma:{bg:'rgba(248,113,113,0.15)',color:'#f87171'},serum:{bg:'rgba(251,146,60,0.15)',color:'#fb923c'},
-                urine:{bg:'rgba(250,204,21,0.15)',color:'#facc15'},'whole blood':{bg:'rgba(248,113,113,0.22)',color:'#f87171'},
+                urine:{bg:'rgba(250,204,21,0.15)',color:'#facc15'},'whole blood':{bg:'rgba(192,132,252,0.15)',color:'#c084fc'},
                 'dried blood spot':{bg:'rgba(244,114,182,0.15)',color:'#f472b6'},CSF:{bg:'rgba(56,189,248,0.15)',color:'#7dd3fc'},
                 saliva:{bg:'rgba(74,222,128,0.15)',color:'#4ade80'},tissue:{bg:'rgba(168,85,247,0.15)',color:'#c084fc'},other:{bg:'rgba(255,255,255,0.05)',color:'#94a3b8'}
               }
@@ -463,14 +502,14 @@ export default function MethodDetail() {
               <FileText size={12} /> Validation SOP
             </a>
             {method.instrument_manufacturer === 'Sciex' && (
-              <a href={`http://127.0.0.1:8000/api/methods/${id}/export/analyst`}
+              <a href={`${API}/methods/${id}/export/analyst`}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition-all no-underline"
                 download>
                 <FileCode size={12} /> .qmf (Analyst)
               </a>
             )}
             {method.instrument_manufacturer === 'Waters' && (
-              <a href={`http://127.0.0.1:8000/api/methods/${id}/export/masslynx`}
+              <a href={`${API}/methods/${id}/export/masslynx`}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition-all no-underline"
                 download>
                 <FileSpreadsheet size={12} /> .csv (MassLynx)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import SEO from '../components/SEO'
 import axios from 'axios'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
@@ -51,7 +52,6 @@ interface FormData {
   sample_prep_details: string
   lloq: string
   lloq_unit: string
-  lloq_unit: string
   uloq: string
   laboratory: string
   country: string
@@ -75,14 +75,14 @@ const empty: FormData = {
 
 const IS = {
   width:'100%', padding:'7px 10px',
-  border:'0.5px solid #d1d5db', borderRadius:'6px',
-  fontSize:'12px', background:'white', color:'#111827',
+  border:'0.5px solid rgba(255,255,255,0.15)', borderRadius:'6px',
+  fontSize:'12px', background:'rgba(255,255,255,0.05)', color:'#e2e8f0',
   fontFamily:'inherit',
 } as React.CSSProperties
 
 const LS = {
   display:'block', fontSize:'11px', fontWeight:'500' as const,
-  color:'#6b7280', marginBottom:'4px',
+  color:'#94a3b8', marginBottom:'4px',
 }
 
 export default function SubmitMethod() {
@@ -112,7 +112,6 @@ export default function SubmitMethod() {
         injection_volume_ul: form.injection_volume_ul ? parseFloat(form.injection_volume_ul) : null,
         lloq: form.lloq ? parseFloat(form.lloq) : null,
         lloq_unit: form.lloq_unit || 'ng/mL',
-        lloq_unit: form.lloq_unit || 'ng/mL',
         uloq: form.uloq ? parseFloat(form.uloq) : null,
         status: 'pending',
         gradient_steps: [],
@@ -128,10 +127,10 @@ export default function SubmitMethod() {
   }
 
   const Panel = ({children, title, icon}: any) => (
-    <div style={{background:'white',border:'0.5px solid #e5e7eb',borderRadius:'12px',
+    <div style={{background:'#0e1b2e',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',
       padding:'1.25rem',marginBottom:'10px'}}>
       <div style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',
-        letterSpacing:'0.06em',color:'#9ca3af',marginBottom:'14px',
+        letterSpacing:'0.06em',color:'#64748b',marginBottom:'14px',
         display:'flex',alignItems:'center',gap:'6px'}}>
         <i className={`ti ${icon}`} aria-hidden="true" />
         {title}
@@ -146,13 +145,13 @@ export default function SubmitMethod() {
     <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
       <div style={{width:'28px',height:'28px',borderRadius:'50%',display:'flex',
         alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'500',
-        background: n < step ? '#1e3a5f' : n === step ? '#E6F1FB' : '#f3f4f6',
-        color: n < step ? 'white' : n === step ? '#0C447C' : '#9ca3af',
-        border: n === step ? '1.5px solid #85B7EB' : 'none'}}>
+        background: n < step ? '#1e3a5f' : n === step ? 'rgba(125,211,252,0.15)' : 'rgba(255,255,255,0.06)',
+        color: n < step ? 'white' : n === step ? '#7dd3fc' : '#64748b',
+        border: n === step ? '1.5px solid rgba(125,211,252,0.4)' : 'none'}}>
         {n < step ? <i className="ti ti-check" style={{fontSize:'12px'}} aria-hidden="true" /> : n}
       </div>
       <div style={{fontSize:'10px',fontWeight:'500',marginTop:'3px',
-        color: n < step ? '#6b7280' : n === step ? '#0C447C' : '#9ca3af'}}>
+        color: n < step ? '#94a3b8' : n === step ? '#7dd3fc' : '#64748b'}}>
         {['','General','Parameters','Files','Attribution'][n]}
       </div>
     </div>
@@ -160,13 +159,13 @@ export default function SubmitMethod() {
 
   if (submitted) return (
     <div style={{maxWidth:'600px',margin:'0 auto',textAlign:'center',padding:'4rem 1rem'}}>
-      <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'#EAF3DE',
+      <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'rgba(74,222,128,0.15)',
         display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',
-        fontSize:'24px',color:'#27500A'}}>
+        fontSize:'24px',color:'#4ade80'}}>
         <i className="ti ti-check" aria-hidden="true" />
       </div>
-      <h1 style={{fontSize:'18px',fontWeight:'500',marginBottom:'8px'}}>Method submitted</h1>
-      <p style={{fontSize:'13px',color:'#6b7280',maxWidth:'340px',margin:'0 auto 24px',lineHeight:'1.6'}}>
+      <h1 style={{fontSize:'18px',fontWeight:'500',marginBottom:'8px',color:'#f1f5f9'}}>Method submitted</h1>
+      <p style={{fontSize:'13px',color:'#94a3b8',maxWidth:'340px',margin:'0 auto 24px',lineHeight:'1.6'}}>
         Thanks for contributing to MetaboLC. The team will review your method and notify you by email once it's published.
       </p>
       <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
@@ -176,8 +175,8 @@ export default function SubmitMethod() {
           Back to repository
         </button>
         <button onClick={() => {setSubmitted(false);setStep(1);setForm(empty);setSelectedApps([])}}
-          style={{padding:'8px 14px',background:'white',color:'#6b7280',
-            border:'0.5px solid #d1d5db',borderRadius:'8px',fontSize:'12px',cursor:'pointer'}}>
+          style={{padding:'8px 14px',background:'rgba(255,255,255,0.05)',color:'#94a3b8',
+            border:'0.5px solid rgba(255,255,255,0.15)',borderRadius:'8px',fontSize:'12px',cursor:'pointer'}}>
           Submit another
         </button>
       </div>
@@ -186,18 +185,20 @@ export default function SubmitMethod() {
 
   return (
     <div style={{maxWidth:'700px',margin:'0 auto'}}>
-      <Link to="/" style={{color:'#1d4ed8',fontSize:'12px',textDecoration:'none',
+      <SEO title="Submit a Method"
+        description="Contribute a clinical LC-MS/MS method to the MetaboLC repository and get credit on the method's detail page." />
+      <Link to="/" style={{color:'#60a5fa',fontSize:'12px',textDecoration:'none',
         display:'inline-flex',alignItems:'center',gap:'4px',marginBottom:'16px'}}>
         <i className="ti ti-arrow-left" style={{fontSize:'13px'}} aria-hidden="true" /> Back to repository
       </Link>
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'6px'}}>
-        <span style={{fontSize:'16px',fontWeight:'500'}}>Submit a method</span>
-        <span style={{fontSize:'11px',color:'#9ca3af'}}>Step {step} of 4</span>
+        <span style={{fontSize:'16px',fontWeight:'500',color:'#f1f5f9'}}>Submit a method</span>
+        <span style={{fontSize:'11px',color:'#94a3b8'}}>Step {step} of 4</span>
       </div>
 
-      <div style={{height:'3px',background:'#f3f4f6',borderRadius:'2px',marginBottom:'20px',overflow:'hidden'}}>
-        <div style={{height:'100%',background:'#1e3a5f',borderRadius:'2px',
+      <div style={{height:'3px',background:'rgba(255,255,255,0.08)',borderRadius:'2px',marginBottom:'20px',overflow:'hidden'}}>
+        <div style={{height:'100%',background:'#38bdf8',borderRadius:'2px',
           width:`${progress}%`,transition:'width 0.3s'}} />
       </div>
 
@@ -206,7 +207,7 @@ export default function SubmitMethod() {
           <div key={n} style={{display:'flex',alignItems:'center',flex: n<4 ? 1 : 0}}>
             <StepCircle n={n} />
             {n < 4 && (
-              <div style={{flex:1,height:'1px',background: n < step ? '#1e3a5f' : '#e5e7eb',
+              <div style={{flex:1,height:'1px',background: n < step ? '#1e3a5f' : 'rgba(255,255,255,0.12)',
                 margin:'0 4px',marginBottom:'16px'}} />
             )}
           </div>
@@ -217,13 +218,13 @@ export default function SubmitMethod() {
         <>
           <Panel title="General information" icon="ti-info-circle">
             <div style={{marginBottom:'10px'}}>
-              <label style={LS}>Method title <span style={{color:'#E24B4A'}}>*</span></label>
+              <label style={LS}>Method title <span style={{color:'#f87171'}}>*</span></label>
               <input style={IS} value={form.title} onChange={u('title')}
                 placeholder="e.g. Simultaneous quantitation of immunosuppressants in whole blood" />
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
               <div>
-                <label style={LS}>Analyte / Panel <span style={{color:'#E24B4A'}}>*</span></label>
+                <label style={LS}>Analyte / Panel <span style={{color:'#f87171'}}>*</span></label>
                 <input style={IS} value={form.analyte} onChange={u('analyte')}
                   placeholder="e.g. Tacrolimus, Sirolimus, Everolimus" />
               </div>
@@ -235,15 +236,15 @@ export default function SubmitMethod() {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
               <div>
-                <label style={LS}>Matrix <span style={{color:'#E24B4A'}}>*</span></label>
+                <label style={LS}>Matrix <span style={{color:'#f87171'}}>*</span></label>
                 <select style={IS} value={form.matrix} onChange={u('matrix')}>
-                  {MATRICES.map(m => <option key={m} value={m}>{m}</option>)}
+                  {MATRICES.map(m => <option key={m} value={m} style={{background:'#0e1b2e'}}>{m}</option>)}
                 </select>
               </div>
               <div>
                 <label style={LS}>Ionization mode</label>
                 <select style={IS} value={form.ionization_mode} onChange={u('ionization_mode')}>
-                  {IONIZATION.map(m => <option key={m} value={m}>{m}</option>)}
+                  {IONIZATION.map(m => <option key={m} value={m} style={{background:'#0e1b2e'}}>{m}</option>)}
                 </select>
               </div>
             </div>
@@ -254,9 +255,9 @@ export default function SubmitMethod() {
                   <span key={app} onClick={() => toggleApp(app)}
                     style={{padding:'4px 10px',borderRadius:'20px',fontSize:'11px',fontWeight:'500',
                       cursor:'pointer',transition:'all 0.15s',userSelect:'none',
-                      background: selectedApps.includes(app) ? '#1e3a5f' : '#f3f4f6',
-                      color: selectedApps.includes(app) ? 'white' : '#6b7280',
-                      border: `0.5px solid ${selectedApps.includes(app) ? '#1e3a5f' : '#d1d5db'}`}}>
+                      background: selectedApps.includes(app) ? '#1e3a5f' : 'rgba(255,255,255,0.05)',
+                      color: selectedApps.includes(app) ? 'white' : '#94a3b8',
+                      border: `0.5px solid ${selectedApps.includes(app) ? '#1e3a5f' : 'rgba(255,255,255,0.15)'}`}}>
                     {app}
                   </span>
                 ))}
@@ -267,12 +268,12 @@ export default function SubmitMethod() {
               <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
                 {VALIDATION_LEVELS.map(v => (
                   <div key={v.code} onClick={() => setForm(prev => ({...prev, validation_level: v.code}))}
-                    style={{padding:'8px',border:`0.5px solid ${form.validation_level===v.code ? '#85B7EB' : '#e5e7eb'}`,
+                    style={{padding:'8px',border:`0.5px solid ${form.validation_level===v.code ? 'rgba(125,211,252,0.4)' : 'rgba(255,255,255,0.1)'}`,
                       borderRadius:'8px',cursor:'pointer',textAlign:'center',
-                      background: form.validation_level===v.code ? '#E6F1FB' : '#f9fafb',
+                      background: form.validation_level===v.code ? 'rgba(125,211,252,0.12)' : 'rgba(255,255,255,0.03)',
                       transition:'all 0.15s'}}>
-                    <div style={{fontSize:'11px',fontWeight:'500',color:form.validation_level===v.code ? '#0C447C' : '#374151'}}>{v.code}</div>
-                    <div style={{fontSize:'9px',color:'#9ca3af',marginTop:'2px'}}>{v.desc}</div>
+                    <div style={{fontSize:'11px',fontWeight:'500',color:form.validation_level===v.code ? '#7dd3fc' : '#e2e8f0'}}>{v.code}</div>
+                    <div style={{fontSize:'9px',color:'#64748b',marginTop:'2px'}}>{v.desc}</div>
                   </div>
                 ))}
               </div>
@@ -286,17 +287,17 @@ export default function SubmitMethod() {
           <Panel title="Instrument and source" icon="ti-microscope">
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
               <div>
-                <label style={LS}>Manufacturer <span style={{color:'#E24B4A'}}>*</span></label>
+                <label style={LS}>Manufacturer <span style={{color:'#f87171'}}>*</span></label>
                 <select style={IS} value={form.instrument_manufacturer}
                   onChange={e => setForm(prev => ({...prev, instrument_manufacturer: e.target.value, instrument_model:''}))}>
-                  {MANUFACTURERS.map(m => <option key={m}>{m}</option>)}
+                  {MANUFACTURERS.map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
                 </select>
               </div>
               <div>
-                <label style={LS}>Model <span style={{color:'#E24B4A'}}>*</span></label>
+                <label style={LS}>Model <span style={{color:'#f87171'}}>*</span></label>
                 <select style={IS} value={form.instrument_model} onChange={u('instrument_model')}>
-                  <option value="">-- Select model --</option>
-                  {(INSTRUMENTS[form.instrument_manufacturer] || []).map(m => <option key={m}>{m}</option>)}
+                  <option value="" style={{background:'#0e1b2e'}}>-- Select model --</option>
+                  {(INSTRUMENTS[form.instrument_manufacturer] || []).map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
                 </select>
               </div>
             </div>
@@ -318,8 +319,8 @@ export default function SubmitMethod() {
               <div>
                 <label style={LS}>Method</label>
                 <select style={IS} value={form.sample_prep_method} onChange={u('sample_prep_method')}>
-                  <option value="">-- Select --</option>
-                  {PREP_METHODS.map(m => <option key={m}>{m}</option>)}
+                  <option value="" style={{background:'#0e1b2e'}}>-- Select --</option>
+                  {PREP_METHODS.map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
                 </select>
               </div>
               <div>
@@ -327,14 +328,14 @@ export default function SubmitMethod() {
                 <div style={{display:'flex',gap:'6px'}}>
                   <input type="number" style={{...IS,flex:1}} value={form.lloq} onChange={u('lloq')} placeholder="e.g. 1.0" />
                   <select style={{...IS,width:'90px'}} value={form.lloq_unit} onChange={u('lloq_unit')}>
-                    <option>ng/mL</option>
-                    <option>pg/mL</option>
-                    <option>µg/mL</option>
-                    <option>nmol/L</option>
-                    <option>pmol/L</option>
-                    <option>µmol/L</option>
-                    <option>ng/dL</option>
-                    <option>µg/dL</option>
+                    <option style={{background:'#0e1b2e'}}>ng/mL</option>
+                    <option style={{background:'#0e1b2e'}}>pg/mL</option>
+                    <option style={{background:'#0e1b2e'}}>µg/mL</option>
+                    <option style={{background:'#0e1b2e'}}>nmol/L</option>
+                    <option style={{background:'#0e1b2e'}}>pmol/L</option>
+                    <option style={{background:'#0e1b2e'}}>µmol/L</option>
+                    <option style={{background:'#0e1b2e'}}>ng/dL</option>
+                    <option style={{background:'#0e1b2e'}}>µg/dL</option>
                   </select>
                 </div>
               </div>
@@ -359,18 +360,18 @@ export default function SubmitMethod() {
             ].map(f => (
               <div key={f.label}>
                 <label style={LS}>{f.label}</label>
-                <div style={{border:'1.5px dashed #d1d5db',borderRadius:'10px',padding:'20px',
-                  textAlign:'center',cursor:'pointer',background:'#f9fafb',transition:'all 0.15s'}}
-                  onMouseEnter={e=>(e.currentTarget.style.borderColor='#85B7EB')}
-                  onMouseLeave={e=>(e.currentTarget.style.borderColor='#d1d5db')}>
-                  <i className={`ti ${f.icon}`} style={{fontSize:'24px',color:'#9ca3af',display:'block',marginBottom:'6px'}} aria-hidden="true" />
-                  <div style={{fontSize:'12px',color:'#6b7280'}}>Drop file here or click to browse</div>
-                  <div style={{fontSize:'10px',color:'#9ca3af',marginTop:'3px'}}>{f.hint}</div>
+                <div style={{border:'1.5px dashed rgba(255,255,255,0.15)',borderRadius:'10px',padding:'20px',
+                  textAlign:'center',cursor:'pointer',background:'rgba(255,255,255,0.03)',transition:'all 0.15s'}}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor='#38bdf8')}
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor='rgba(255,255,255,0.15)')}>
+                  <i className={`ti ${f.icon}`} style={{fontSize:'24px',color:'#64748b',display:'block',marginBottom:'6px'}} aria-hidden="true" />
+                  <div style={{fontSize:'12px',color:'#94a3b8'}}>Drop file here or click to browse</div>
+                  <div style={{fontSize:'10px',color:'#64748b',marginTop:'3px'}}>{f.hint}</div>
                 </div>
               </div>
             ))}
-            <div style={{padding:'8px 12px',background:'#f9fafb',borderRadius:'8px',
-              fontSize:'11px',color:'#6b7280',display:'flex',alignItems:'flex-start',gap:'6px'}}>
+            <div style={{padding:'8px 12px',background:'rgba(255,255,255,0.04)',borderRadius:'8px',
+              fontSize:'11px',color:'#94a3b8',display:'flex',alignItems:'flex-start',gap:'6px'}}>
               <i className="ti ti-info-circle" style={{fontSize:'13px',flexShrink:0,marginTop:'1px'}} aria-hidden="true" />
               <span>Native files are optional during beta. If not available, the method will show text parameters with a "file pending review" badge.</span>
             </div>
@@ -382,8 +383,8 @@ export default function SubmitMethod() {
         <>
           <Panel title="Attribution and credit" icon="ti-user-check">
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div><label style={LS}>Your name <span style={{color:'#E24B4A'}}>*</span></label><input style={IS} value={form.submitted_by} onChange={u('submitted_by')} placeholder="Dr. Anna Schmidt" /></div>
-              <div><label style={LS}>Institution / Laboratory <span style={{color:'#E24B4A'}}>*</span></label><input style={IS} value={form.laboratory} onChange={u('laboratory')} placeholder="University Hospital Basel" /></div>
+              <div><label style={LS}>Your name <span style={{color:'#f87171'}}>*</span></label><input style={IS} value={form.submitted_by} onChange={u('submitted_by')} placeholder="Dr. Anna Schmidt" /></div>
+              <div><label style={LS}>Institution / Laboratory <span style={{color:'#f87171'}}>*</span></label><input style={IS} value={form.laboratory} onChange={u('laboratory')} placeholder="University Hospital Basel" /></div>
               <div><label style={LS}>Country</label><input style={IS} value={form.country} onChange={u('country')} placeholder="Switzerland" /></div>
               <div><label style={LS}>Contact email (not public)</label><input type="email" style={IS} value={form.submitted_by_email} onChange={u('submitted_by_email')} placeholder="a.schmidt@unibas.ch" /></div>
             </div>
@@ -397,9 +398,9 @@ export default function SubmitMethod() {
             </div>
           </Panel>
           <div style={{display:'flex',alignItems:'flex-start',gap:'8px',padding:'10px 14px',
-            border:'0.5px solid #86efac',borderRadius:'8px',background:'#f0fdf4',marginBottom:'10px'}}>
-            <i className="ti ti-shield-check" style={{fontSize:'15px',color:'#15803d',flexShrink:0,marginTop:'1px'}} aria-hidden="true" />
-            <div style={{fontSize:'11px',color:'#15803d'}}>
+            border:'0.5px solid rgba(74,222,128,0.3)',borderRadius:'8px',background:'rgba(74,222,128,0.08)',marginBottom:'10px'}}>
+            <i className="ti ti-shield-check" style={{fontSize:'15px',color:'#4ade80',flexShrink:0,marginTop:'1px'}} aria-hidden="true" />
+            <div style={{fontSize:'11px',color:'#4ade80'}}>
               Your method will be reviewed by the MetaboLC team before publication. You'll receive an email once it's live. Credit will appear publicly in the method detail page.
             </div>
           </div>
@@ -407,10 +408,10 @@ export default function SubmitMethod() {
       )}
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-        paddingTop:'12px',borderTop:'0.5px solid #e5e7eb'}}>
+        paddingTop:'12px',borderTop:'0.5px solid rgba(255,255,255,0.1)'}}>
         <button onClick={() => setStep(s => Math.max(1, s-1))}
           style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',
-            background:'white',color:'#6b7280',border:'0.5px solid #d1d5db',
+            background:'rgba(255,255,255,0.05)',color:'#94a3b8',border:'0.5px solid rgba(255,255,255,0.15)',
             borderRadius:'8px',fontSize:'12px',cursor:'pointer',
             visibility: step === 1 ? 'hidden' : 'visible'}}>
           <i className="ti ti-arrow-left" aria-hidden="true" /> Back

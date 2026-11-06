@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, FlaskConical, ExternalLink } from 'lucide-react'
+import SEO from '../components/SEO'
 import axios from 'axios'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
@@ -45,6 +46,8 @@ export default function CompoundIndex() {
 
   return (
     <>
+    <SEO title="Compound Index — Analytes Across Clinical LC-MS/MS Methods"
+      description="Browse every analyte in the MetaboLC repository with formula, exact mass, and the methods that quantify it." />
     <style>{`
       .compounds-page { background: #060d1a; min-height: 100vh; }
       .compounds-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
@@ -54,6 +57,7 @@ export default function CompoundIndex() {
       .compounds-page .text-slate-500 { color: #64748b !important; }
       .compounds-page .text-slate-400 { color: #475569 !important; }
       .compounds-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
+      .compounds-page .hover\\:text-slate-600:hover { color: #94a3b8 !important; }
       .compounds-page input { color: #e2e8f0 !important; }
       .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
     `}</style>

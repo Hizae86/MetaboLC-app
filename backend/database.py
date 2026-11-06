@@ -8,6 +8,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./metabolc.db")
 
+# Render (and other Heroku-style providers) hand out connection strings with
+# the old "postgres://" scheme, but SQLAlchemy 2.x only accepts
+# "postgresql://". Normalize it here so DATABASE_URL can be pasted straight
+# from the provider's dashboard without edits.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}

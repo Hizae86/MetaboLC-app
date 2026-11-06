@@ -3,10 +3,11 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import Method, MRMTransition
+from backend.rate_limit import rate_limit
 import anthropic
 import os
 from dotenv import load_dotenv
-load_dotenv('/Users/ilciequinteroavila/MetaboLC-app/.env')
+load_dotenv()
 
 router = APIRouter()
 
@@ -151,14 +152,14 @@ Generate a complete SOP in English with these sections:
 Be very specific with numbers — calculate actual QC concentrations, calibrator levels, and volumes based on the method parameters provided. Make it a true "cookbook" that a lab scientist can follow without interpretation."""
 
 
-@router.post("/methods/generate-sop")
+@router.post(
+    "/methods/generate-sop",
+    dependencies=[Depends(rate_limit("generate-sop", max_calls=5, window_seconds=300))],
+)
 def generate_sop_custom(payload: dict, db: Session = Depends(get_db)):
     import os
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=503, detail="AI features not available in this deployment")
-    from dotenv import load_dotenv
-    load_dotenv('/Users/ilciequinteroavila/MetaboLC-app/.env')
-
     method_id = payload.get("method_id")
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
@@ -280,13 +281,16 @@ Structure:
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=8000,
-        messages=[{{"role": "user", "content": prompt}}]
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return {{"sop": response.content[0].text}}
+    return {"sop": response.content[0].text}
 
 
-@router.get("/methods/{method_id}/export/sop")
+@router.get(
+    "/methods/{method_id}/export/sop",
+    dependencies=[Depends(rate_limit("export-sop", max_calls=5, window_seconds=300))],
+)
 def generate_sop(method_id: int, db: Session = Depends(get_db)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:

@@ -5,31 +5,32 @@ import axios from 'axios'
 import TrendingCarousel from '../components/TrendingCarousel'
 import { CompletenesBadge } from '../components/CompletenessScore'
 import ChromatogramChart from '../components/ChromatogramChart'
+import SEO from '../components/SEO'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRIX_CLS: Record<string, string> = {
-  plasma: 'bg-red-50 text-red-700 border-red-200',
-  serum: 'bg-orange-50 text-orange-700 border-orange-200',
-  urine: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  'whole blood': 'bg-violet-50 text-violet-700 border-violet-200',
-  'dried blood spot': 'bg-pink-50 text-pink-700 border-pink-200',
-  csf: 'bg-blue-50 text-blue-700 border-blue-200',
-  saliva: 'bg-green-50 text-green-700 border-green-200',
-  other: 'bg-slate-50 text-slate-600 border-slate-200',
+  plasma: 'bg-red-500/10 text-red-300 border-red-400/30',
+  serum: 'bg-orange-500/10 text-orange-300 border-orange-400/30',
+  urine: 'bg-yellow-500/10 text-yellow-300 border-yellow-400/30',
+  'whole blood': 'bg-violet-500/10 text-violet-300 border-violet-400/30',
+  'dried blood spot': 'bg-pink-500/10 text-pink-300 border-pink-400/30',
+  csf: 'bg-sky-500/10 text-sky-300 border-sky-400/30',
+  saliva: 'bg-green-500/10 text-green-300 border-green-400/30',
+  other: 'bg-white/5 text-slate-400 border-white/10',
 }
 
 const MATRIX_LABEL: Record<string, string> = { csf: 'CSF' }
 const matrixLabel = (m: string) => MATRIX_LABEL[m.toLowerCase()] || m.replace(/\b\w/g, c => c.toUpperCase())
 
 const VENDOR_CLS: Record<string, string> = {
-  'Sciex': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Waters': 'bg-teal-50 text-teal-700 border-teal-200',
-  'Thermo Fisher': 'bg-orange-50 text-orange-700 border-orange-200',
-  'Agilent': 'bg-purple-50 text-purple-700 border-purple-200',
-  'Shimadzu': 'bg-rose-50 text-rose-700 border-rose-200',
-  'Bruker': 'bg-amber-50 text-amber-700 border-amber-200',
-  'other': 'bg-slate-50 text-slate-600 border-slate-200',
+  'Sciex': 'bg-blue-500/10 text-blue-300 border-blue-400/30',
+  'Waters': 'bg-teal-500/10 text-teal-300 border-teal-400/30',
+  'Thermo Fisher': 'bg-orange-500/10 text-orange-300 border-orange-400/30',
+  'Agilent': 'bg-purple-500/10 text-purple-300 border-purple-400/30',
+  'Shimadzu': 'bg-rose-500/10 text-rose-300 border-rose-400/30',
+  'Bruker': 'bg-amber-500/10 text-amber-300 border-amber-400/30',
+  'other': 'bg-white/5 text-slate-400 border-white/10',
 }
 
 const MATRIX_PILLS = ['plasma', 'serum', 'urine', 'whole blood', 'dried blood spot', 'csf']
@@ -70,6 +71,8 @@ export default function Methods() {
 
   return (
     <>
+    <SEO title="Browse Clinical LC-MS/MS Methods"
+      description="Search and filter clinical LC-MS/MS methods by matrix, vendor, sample prep, and LLOQ across the MetaboLC repository." />
     <style>{`
       .methods-page { background: #060d1a; min-height: 100vh; }
       .methods-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
@@ -80,6 +83,8 @@ export default function Methods() {
       .methods-page .text-slate-400 { color: #475569 !important; }
       .methods-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
       .methods-page .bg-slate-100 { background: rgba(255,255,255,0.05) !important; }
+      .methods-page .hover\\:bg-slate-50:hover { background: rgba(255,255,255,0.04) !important; }
+      .methods-page .hover\\:text-slate-600:hover { color: #94a3b8 !important; }
       .methods-page input { color: #e2e8f0 !important; }
       .methods-page .hover\:-translate-y-1:hover { border-color: rgba(56,189,248,0.3) !important; box-shadow: 0 4px 20px rgba(56,189,248,0.08) !important; }
     `}</style>

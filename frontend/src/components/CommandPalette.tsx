@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, FlaskConical, LayoutGrid, Calculator, ArrowRightLeft, Beaker } from 'lucide-react'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRICES = ['plasma','serum','urine','whole blood','dried blood spot','csf','saliva']
 

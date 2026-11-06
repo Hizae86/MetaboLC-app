@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import SEO from '../components/SEO'
 import axios from 'axios'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
@@ -64,6 +65,8 @@ export default function Contributors() {
 
   return (
     <>
+    <SEO title="Top Contributors"
+      description="Researchers and laboratories sharing clinical LC-MS/MS methods with the MetaboLC community." />
     <style>{`
       .contributors-page { background: #060d1a; min-height: 100vh; }
       .contributors-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
@@ -74,6 +77,8 @@ export default function Contributors() {
       .contributors-page .text-slate-400 { color: #475569 !important; }
       .contributors-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
       .contributors-page .bg-slate-100 { background: rgba(255,255,255,0.05) !important; }
+      .contributors-page .hover\\:bg-slate-50:hover { background: rgba(255,255,255,0.04) !important; }
+      .contributors-page .hover\\:text-slate-600:hover { color: #94a3b8 !important; }
     `}</style>
     <div className="contributors-page max-w-2xl mx-auto pb-16">
       <Link to="/" className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-6 block">
@@ -89,29 +94,37 @@ export default function Contributors() {
 
       {/* Podium — compact */}
       {!loading && contributors.length >= 3 && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6 items-end">
           {[contributors[1], contributors[0], contributors[2]].map((c, i) => {
             if (!c) return null
             const rank = i === 0 ? 2 : i === 1 ? 1 : 3
             const medal = ['🥈','🥇','🥉'][i]
             const isFirst = rank === 1
+            const minHeight = rank === 1 ? '176px' : rank === 2 ? '132px' : '104px'
             return (
               <div key={c.name}
-                className={`flex flex-col items-center p-3 rounded-xl border transition-all
-                  ${isFirst
-                    ? 'bg-amber-50 border-amber-200 shadow-sm'
-                    : 'bg-white border-slate-200'}`}>
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all
+                  ${isFirst ? '' : 'bg-white border-slate-200'}`}
+                style={{
+                  minHeight,
+                  ...(isFirst ? {background:'rgba(245,158,11,0.1)', borderColor:'rgba(245,158,11,0.35)', boxShadow:'0 4px 20px rgba(245,158,11,0.12)'} : {})
+                }}>
                 <span className="text-xl mb-1">{medal}</span>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center
                   text-sm font-bold mb-1.5
-                  ${isFirst ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                  ${isFirst ? '' : 'bg-slate-100 text-slate-600'}`}
+                  style={isFirst ? {background:'rgba(251,191,36,0.18)', color:'#fbbf24'} : undefined}>
                   {getInitial(c.name)}
                 </div>
                 <p className={`text-xs font-semibold text-center truncate w-full
-                  ${isFirst ? 'text-amber-900' : 'text-slate-700'}`}>
+                  ${isFirst ? '' : 'text-slate-700'}`}
+                  style={isFirst ? {color:'#fbbf24'} : undefined}>
                   {c.name.split(' ').slice(0,2).join(' ')}
                 </p>
-                <p className="text-xs text-slate-400 mt-0.5">{c.method_count} methods</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-xs">{COUNTRY_FLAG[c.country] || '🌍'}</span>
+                  <p className="text-xs text-slate-400">{c.method_count} methods</p>
+                </div>
               </div>
             )
           })}
@@ -120,8 +133,9 @@ export default function Contributors() {
 
       {/* Leaderboard table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Full Ranking</h2>
+          <span className="text-xs text-slate-400">{contributors.length} contributors</span>
         </div>
 
         {loading ? (
@@ -141,11 +155,11 @@ export default function Contributors() {
 
                 {/* Avatar */}
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center
-                  text-sm font-bold shrink-0
-                  ${i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                    i === 1 ? 'bg-slate-100 text-slate-600' :
-                    i === 2 ? 'bg-orange-100 text-orange-600' :
-                    'bg-indigo-50 text-indigo-600'}`}>
+                  text-sm font-bold shrink-0 ${i === 1 ? 'bg-slate-100 text-slate-600' : ''}`}
+                  style={i === 1 ? undefined : {
+                    background: i === 0 ? 'rgba(250,204,21,0.15)' : i === 2 ? 'rgba(251,146,60,0.15)' : 'rgba(129,140,248,0.15)',
+                    color: i === 0 ? '#facc15' : i === 2 ? '#fb923c' : '#a5b4fc'
+                  }}>
                   {getInitial(c.name)}
                 </div>
 

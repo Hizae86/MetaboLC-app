@@ -1,3 +1,7 @@
 {
-  "framework": "vite"
+  "framework": "vite",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://metabolc-app.onrender.com/sitemap.xml" }
+  ]
 }

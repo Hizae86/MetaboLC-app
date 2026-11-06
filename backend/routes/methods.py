@@ -5,9 +5,17 @@ from typing import Optional, List
 from pydantic import BaseModel
 from backend.database import get_db
 from backend.models import Method, GradientStep, MRMTransition, CompoundValidation, MethodConfirmation
+from backend.auth import require_admin
+from backend.rate_limit import rate_limit
 from datetime import datetime
 
 router = APIRouter()
+
+@router.get("/admin/ping")
+def admin_ping(_: None = Depends(require_admin)):
+    """Lets the frontend verify an admin key with no side effects, instead
+    of probing a real write endpoint just to check the password."""
+    return {"ok": True}
 
 class ConfirmationCreate(BaseModel):
     laboratory: Optional[str] = None
@@ -415,7 +423,7 @@ def create_method(method: MethodCreate, db: Session = Depends(get_db)):
     return db_method
 
 @router.put("/{method_id}", response_model=MethodResponse)
-def update_method(method_id: int, method: MethodCreate, db: Session = Depends(get_db)):
+def update_method(method_id: int, method: MethodCreate, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     import sys
     db_method = db.query(Method).filter(Method.id == method_id).first()
     if not db_method:
@@ -428,7 +436,7 @@ def update_method(method_id: int, method: MethodCreate, db: Session = Depends(ge
     return db_method
 
 @router.put("/{method_id}/verify")
-def verify_method(method_id: int, db: Session = Depends(get_db)):
+def verify_method(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
@@ -445,7 +453,7 @@ def verify_method(method_id: int, db: Session = Depends(get_db)):
     return {"status": method.status, "verified_by": method.verified_by, "verified_at": str(method.verified_at)}
 
 @router.delete("/{method_id}")
-def delete_method(method_id: int, db: Session = Depends(get_db)):
+def delete_method(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
@@ -467,18 +475,18 @@ def export_mrm(method_id: int, db: Session = Depends(get_db)):
     return {"content": content, "filename": filename}
 
 @router.post("/{method_id}/upload-chromatogram")
-def upload_chromatogram(method_id: int, db: Session = Depends(get_db)):
+def upload_chromatogram(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     return {"message": "Not implemented"}
 
 @router.post("/{method_id}/upload-sop")
-def upload_sop(method_id: int, db: Session = Depends(get_db)):
+def upload_sop(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     return {"message": "Not implemented"}
 
 class GradientUpdate(BaseModel):
     steps: list
 
 @router.put("/{method_id}/gradient")
-def update_gradient(method_id: int, payload: GradientUpdate, db: Session = Depends(get_db)):
+def update_gradient(method_id: int, payload: GradientUpdate, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
@@ -493,7 +501,7 @@ class TransitionsUpdate(BaseModel):
     transitions: list
 
 @router.put("/{method_id}/transitions")
-def update_transitions(method_id: int, payload: TransitionsUpdate, db: Session = Depends(get_db)):
+def update_transitions(method_id: int, payload: TransitionsUpdate, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
@@ -536,7 +544,7 @@ def get_validation(method_id: int, db: Session = Depends(get_db)):
     return db.query(CompoundValidation).filter(CompoundValidation.method_id == method_id).all()
 
 @router.put("/{method_id}/validation")
-def update_validation(method_id: int, payload: ValidationUpdate, db: Session = Depends(get_db)):
+def update_validation(method_id: int, payload: ValidationUpdate, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     db.query(CompoundValidation).filter(CompoundValidation.method_id == method_id).delete()
     float_fields = ['lod','loq','r2','cv_percent','accuracy_percent']
     allowed = {'compound_name','lod','loq','r2','cv_percent','accuracy_percent','matrix','notes',
@@ -571,11 +579,15 @@ class ChatRequest(BaseModel):
     message: str
     conversation: Optional[list] = []
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(rate_limit("chat", max_calls=10, window_seconds=60))])
 def chat_with_massa(request: dict, db: Session = Depends(get_db)):
     import os
     if not os.getenv("ANTHROPIC_API_KEY"):
-        return {"response": "AI features are not available in the public demo. Contact the MetaboLC team for access."}
+        return {
+            "reply": "AI features are not available in the public demo. Contact the MetaboLC team for access.",
+            "methods_found": 0,
+            "matched_methods": [],
+        }
     import anthropic, os
     message = request.get("message", "")
     mode = request.get("mode", "chat")  # chat | draft | troubleshoot
@@ -648,7 +660,13 @@ For troubleshooting: reference specific methods that solved similar problems."""
         system=system_prompt,
         messages=[{"role": "user", "content": message}]
     )
-    return {"response": response.content[0].text}
+    return {
+        "reply": response.content[0].text,
+        "methods_found": len(top_methods),
+        "matched_methods": [
+            {"id": m.id, "title": m.title or f"Method #{m.id}"} for m in top_methods
+        ],
+    }
 
 
 @router.get("/{method_id}/confirmations")

@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChromatogramBackground from '../components/ChromatogramBackground'
+import SEO from '../components/SEO'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api'
+const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 const MATRICES = ['plasma','serum','urine','whole blood','dried blood spot','csf','saliva']
 const AREAS = ['Steroids','Vitamins','Immunosuppressants','Catecholamines','Antiepileptic Drugs','Toxicology','Antipsychotic Drugs','TDM']
@@ -86,6 +87,9 @@ export default function Home() {
   }
 
   return (
+    <>
+    <SEO title="MetaboLC — Open Reference Library of Clinical LC-MS/MS Methods"
+      description="Search and compare peer-reviewed clinical LC-MS/MS methods by analyte, matrix, and instrument. Free, open, and community-contributed." />
     <div style={{
       minHeight: '100vh',
       background: '#060d1a',
@@ -328,10 +332,11 @@ export default function Home() {
 
         {/* Disclaimer */}
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}
-          style={{ textAlign: 'center', color: '#1e293b', fontSize: '11px', marginTop: '28px' }}>
+          style={{ textAlign: 'center', color: '#64748b', fontSize: '11px', marginTop: '28px' }}>
           Reference library — methods require independent validation before clinical use.
         </motion.p>
       </div>
     </div>
+    </>
   )
 }
