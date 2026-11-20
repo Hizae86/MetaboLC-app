@@ -1,13 +1,17 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from backend.database import get_db
 from backend.models import Method, GradientStep, MRMTransition, CompoundValidation, MethodConfirmation
 from backend.auth import require_admin
 from backend.rate_limit import rate_limit
+from backend.visibility import ALL_STATUSES, PUBLIC_STATUSES, is_admin, public, visible_or_404
 from datetime import datetime
+from backend.completeness import calc_completeness, evaluate as evaluate_completeness
+from backend import green as green_footprint
+from backend import community
 
 router = APIRouter()
 
@@ -18,11 +22,17 @@ def admin_ping(_: None = Depends(require_admin)):
     return {"ok": True}
 
 class ConfirmationCreate(BaseModel):
-    laboratory: Optional[str] = None
-    country: Optional[str] = None
-    instrument: Optional[str] = None
-    comment: Optional[str] = None
-    rating: Optional[int] = None
+    """A community review: did the method work in your laboratory?"""
+    outcome: str
+    laboratory: str = Field(..., min_length=2, max_length=200)
+    country: Optional[str] = Field(None, max_length=100)
+    instrument: Optional[str] = Field(None, max_length=200)
+    changes: Optional[str] = Field(None, max_length=500)
+    comment: Optional[str] = Field(None, max_length=500)
+
+
+class ConfirmationModerate(BaseModel):
+    status: str
 
 class GradientStepSchema(BaseModel):
     time_min: float
@@ -55,6 +65,9 @@ class MRMTransitionSchema(BaseModel):
     pubchem_formula: Optional[str] = None
     pubchem_exact_mass: Optional[float] = None
     pubchem_adduct: Optional[str] = None
+    derivative: Optional[str] = None
+    is_derivatized: Optional[int] = 0
+    review_checked: Optional[int] = 0
 
 class MethodCreate(BaseModel):
     title: Optional[str] = None
@@ -117,6 +130,13 @@ class MethodCreate(BaseModel):
     ddms2_resolution: Optional[float] = None
     ddms2_isolation_window: Optional[float] = None
     nce_stepped: Optional[str] = None
+    ion_mobility_device: Optional[str] = None
+    im_separation_voltage_v: Optional[float] = None
+    im_compensation_voltage_v: Optional[float] = None
+    im_offset_v: Optional[float] = None
+    im_temperature_c: Optional[float] = None
+    im_resolution: Optional[str] = None
+    im_modifier: Optional[str] = None
     sample_prep_method: Optional[str] = None
     sample_prep_details: Optional[str] = None
     lloq: Optional[float] = None
@@ -129,6 +149,9 @@ class MethodCreate(BaseModel):
     reference: Optional[str] = None
     notes: Optional[str] = None
     submitted_by: Optional[str] = None
+    source_type: Optional[str] = None
+    source_authors: Optional[str] = None
+    source_url: Optional[str] = None
     submitted_by_email: Optional[str] = None
     status: Optional[str] = "pending"
     is_derivatized: Optional[int] = 0
@@ -209,6 +232,13 @@ class MethodResponse(BaseModel):
     ddms2_resolution: Optional[float] = None
     ddms2_isolation_window: Optional[float] = None
     nce_stepped: Optional[str] = None
+    ion_mobility_device: Optional[str] = None
+    im_separation_voltage_v: Optional[float] = None
+    im_compensation_voltage_v: Optional[float] = None
+    im_offset_v: Optional[float] = None
+    im_temperature_c: Optional[float] = None
+    im_resolution: Optional[str] = None
+    im_modifier: Optional[str] = None
     sample_prep_method: Optional[str] = None
     sample_prep_details: Optional[str] = None
     lloq: Optional[float] = None
@@ -221,12 +251,19 @@ class MethodResponse(BaseModel):
     reference: Optional[str] = None
     notes: Optional[str] = None
     submitted_by: Optional[str] = None
+    source_type: Optional[str] = None
+    source_authors: Optional[str] = None
+    source_url: Optional[str] = None
     status: Optional[str] = None
     verified_by: Optional[str] = None
     verified_at: Optional[datetime] = None
     validation_units: Optional[str] = None
     is_derivatized: Optional[int] = 0
     validation_level: Optional[str] = "RUO"
+    completeness_score: Optional[int] = None
+    completeness: Optional[dict] = None
+    green: Optional[dict] = None
+    community: Optional[dict] = None
     gradient_steps: List[GradientStepResponse] = []
     mrm_transitions: List[MRMTransitionResponse] = []
     class Config:
@@ -234,104 +271,83 @@ class MethodResponse(BaseModel):
 
 @router.get("/compounds")
 def get_compounds(db: Session = Depends(get_db)):
-    from sqlalchemy import text
-    rows = db.execute(text("""
-        SELECT 
-            MIN(compound_name) as name,
-            pubchem_cid,
-            MIN(pubchem_formula) as formula,
-            MIN(pubchem_exact_mass) as exact_mass,
-            COUNT(DISTINCT method_id) as method_count,
-            GROUP_CONCAT(DISTINCT method_id) as method_ids
-        FROM mrm_transitions
-        WHERE is_internal_standard = 0
-        AND compound_name IS NOT NULL
-        GROUP BY 
-            CASE WHEN pubchem_cid IS NOT NULL AND pubchem_cid > 0 
-                 THEN CAST(pubchem_cid AS TEXT)
-                 ELSE LOWER(TRIM(compound_name))
-            END
-        ORDER BY method_count DESC
-    """)).fetchall()
-    
-    result = []
+    """Analyte index. One query, aggregated in Python (no GROUP_CONCAT,
+    works on SQLite and Postgres). Only public methods are counted."""
+    from collections import Counter, defaultdict
+
+    rows = (
+        db.query(
+            MRMTransition.compound_name,
+            MRMTransition.pubchem_cid,
+            MRMTransition.pubchem_formula,
+            MRMTransition.pubchem_exact_mass,
+            MRMTransition.precursor_mz,
+            MRMTransition.product_mz,
+            MRMTransition.retention_time_min,
+            MRMTransition.is_quantifier,
+            MRMTransition.polarity,
+            Method.id.label("method_id"),
+            Method.matrix,
+            Method.status,
+            Method.clinical_application,
+            Method.ionization_mode,
+        )
+        .join(Method, Method.id == MRMTransition.method_id)
+        .filter(
+            MRMTransition.is_internal_standard == 0,
+            MRMTransition.compound_name.isnot(None),
+            Method.status.in_(PUBLIC_STATUSES),
+        )
+        .all()
+    )
+
+    groups = defaultdict(list)
     for r in rows:
-        method_ids = [int(x) for x in (r.method_ids or '').split(',') if x]
-        # Get matrix info for each method
-        methods_info = []
-        for mid in method_ids[:5]:
-            m = db.query(Method).filter(Method.id == mid).first()
-            if m:
-                methods_info.append({
-                    'id': m.id,
-                    'matrix': m.matrix,
-                    'instrument': m.instrument_manufacturer,
-                    'status': m.status
-                })
+        key = str(r.pubchem_cid) if (r.pubchem_cid and r.pubchem_cid > 0) else (r.compound_name or "").strip().lower()
+        if key:
+            groups[key].append(r)
+
+    result = []
+    for key, rs in groups.items():
+        methods = {}
+        for r in rs:
+            methods.setdefault(r.method_id, r)
+        quant = [r for r in rs if r.is_quantifier]
+        # Consensus quant transition: the (Q1, Q3) pair used by most methods.
+        pair_methods = defaultdict(set)
+        for r in quant:
+            if r.precursor_mz is not None and r.product_mz is not None:
+                pair_methods[(round(float(r.precursor_mz), 1), round(float(r.product_mz), 1))].add(r.method_id)
+        top = max(pair_methods.items(), key=lambda kv: len(kv[1]))[0] if pair_methods else None
+        pol = Counter(
+            (r.polarity or r.ionization_mode) for r in quant if (r.polarity or r.ionization_mode)
+        )
+        rts = [float(r.retention_time_min) for r in quant if r.retention_time_min is not None]
+        matrices = sorted({(r.matrix or "").strip().lower() for r in rs if r.matrix})
+        apps = sorted({r.clinical_application for r in rs if r.clinical_application})
+        names = Counter((r.compound_name or "").strip() for r in rs if r.compound_name)
         result.append({
-            'name': r.name,
-            'pubchem_cid': r.pubchem_cid,
-            'formula': r.formula,
-            'exact_mass': float(r.exact_mass) if r.exact_mass else None,
-            'method_count': r.method_count,
-            'methods': methods_info
+            "name": names.most_common(1)[0][0],
+            "normalized": key,
+            "pubchem_cid": next((r.pubchem_cid for r in rs if r.pubchem_cid and r.pubchem_cid > 0), None),
+            "formula": next((r.pubchem_formula for r in rs if r.pubchem_formula), None),
+            "exact_mass": next((float(r.pubchem_exact_mass) for r in rs if r.pubchem_exact_mass), None),
+            "method_count": len(methods),
+            "verified_count": sum(1 for m in methods.values() if m.status == "verified"),
+            "matrices": matrices,
+            "applications": apps,
+            "common_transition": {"precursor_mz": top[0], "product_mz": top[1]} if top else None,
+            "polarity": pol.most_common(1)[0][0] if pol else None,
+            "rt_min": min(rts) if rts else None,
+            "rt_max": max(rts) if rts else None,
         })
+    result.sort(key=lambda c: (-c["method_count"], c["name"].lower()))
     return result
-
-def calc_completeness(m) -> int:
-    score = 0
-
-    # Identificación (10 pts)
-    if m.title: score += 2
-    if m.analyte: score += 3
-    if m.matrix: score += 3
-    if m.clinical_application: score += 2
-
-    # Cromatografía (20 pts)
-    if m.column_name or m.column_brand: score += 4
-    if m.mobile_phase_a and m.mobile_phase_b: score += 6
-    if m.gradient_steps and len(m.gradient_steps) > 0: score += 6
-    if m.gradient_steps and m.gradient_steps[0].flow_rate_ml_min: score += 4
-
-    # MRM Transitions (20 pts)
-    quant = [t for t in m.mrm_transitions if not t.is_internal_standard and t.is_quantifier]
-    if len(quant) >= 1: score += 8
-    if len(quant) >= 1 and quant[0].collision_energy_ev: score += 6
-    if len(quant) >= 1 and quant[0].retention_time_min: score += 6
-
-    # MS Source (15 pts) — any source param counts
-    source_fields = [m.ion_spray_voltage, m.source_temperature_c, m.gas1, m.gas2,
-                     m.curtain_gas, m.capillary_voltage_pos_v, m.desolvation_temperature_c,
-                     m.capillary_voltage_v, m.capillary_voltage_neg_v, m.cone_gas_flow_lh,
-                     m.desolvation_gas_flow_lh, m.sheath_gas_flow_lmin]
-    filled = sum(1 for f in source_fields if f is not None)
-    if filled >= 1: score += 8
-    if filled >= 3: score += 7
-
-    # Validación (20 pts) — only if compound_validation has data
-    try:
-        validations = list(m.compound_validation) if m.compound_validation else []
-    except:
-        validations = []
-    if validations:
-        if any(getattr(v, 'lloq', None) for v in validations): score += 8
-        if any(getattr(v, 'cv_intra_percent', None) or getattr(v, 'cv_inter_percent', None) or getattr(v, 'cv_percent', None) for v in validations): score += 6
-        if any(getattr(v, 'r2', None) for v in validations): score += 6
-
-    # Sample prep (10 pts)
-    if m.sample_prep_method: score += 4
-    if m.sample_prep_details and len(m.sample_prep_details or '') > 50: score += 6
-
-    # Trazabilidad (5 pts)
-    if m.reference: score += 3
-    if m.laboratory: score += 2
-
-    return min(100, score)
 
 @router.get("/summary")
 def get_methods_summary(db: Session = Depends(get_db)):
     """Lightweight endpoint for method cards - no transitions"""
-    methods = db.query(Method).all()
+    methods = public(db.query(Method)).all()
     return [{
         "id": m.id,
         "title": m.title,
@@ -354,7 +370,7 @@ def get_methods_summary(db: Session = Depends(get_db)):
 @router.get("/trending")
 def get_trending(db: Session = Depends(get_db)):
     from sqlalchemy import text
-    methods = db.query(Method).order_by(text('view_count DESC')).limit(8).all()
+    methods = public(db.query(Method)).order_by(text('view_count DESC')).limit(8).all()
     return [{
         "id": m.id,
         "title": m.title,
@@ -377,7 +393,7 @@ def get_contributors(db: Session = Depends(get_db)):
         Method.country,
         func.count(Method.id).label("method_count")
     ).filter(
-        Method.submitted_by != None
+        Method.submitted_by != None, Method.status.in_(PUBLIC_STATUSES)
     ).group_by(
         Method.submitted_by
     ).order_by(
@@ -386,22 +402,61 @@ def get_contributors(db: Session = Depends(get_db)):
     return [{"name": r.submitted_by, "laboratory": r.laboratory,
              "country": r.country, "method_count": r.method_count} for r in results]
 
+class StatusChange(BaseModel):
+    status: str
+
+
+@router.get("/review-queue")
+def review_queue(status: str = "submitted", db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Methods waiting for (or removed by) moderation, newest first."""
+    if status not in ("submitted", "rejected"):
+        raise HTTPException(status_code=422, detail="status must be 'submitted' or 'rejected'")
+    rows = db.query(Method).filter(Method.status == status).order_by(Method.created_at.desc()).all()
+    return [{
+        "id": m.id, "title": m.title, "analyte": m.analyte, "matrix": m.matrix,
+        "instrument_manufacturer": m.instrument_manufacturer, "instrument_model": m.instrument_model,
+        "submitted_by": m.submitted_by, "submitted_by_email": m.submitted_by_email,
+        "laboratory": m.laboratory, "country": m.country,
+        "source_type": m.source_type, "reference": m.reference, "source_url": m.source_url,
+        "mrm_count": len(m.mrm_transitions), "gradient_count": len(m.gradient_steps),
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    } for m in rows]
+
+
+@router.get("/review-queue/count")
+def review_queue_count(db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    return {"submitted": db.query(Method).filter(Method.status == "submitted").count(),
+            "community_pending": community.pending_count(db)}
+
+
+@router.get("/review-queue/community")
+def community_review_queue(status: str = "pending", db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Community reviews across all methods, for moderators."""
+    if status not in community.STATUSES:
+        raise HTTPException(status_code=422, detail="Unknown status.")
+    q = db.query(MethodConfirmation, Method.title).join(Method, Method.id == MethodConfirmation.method_id)
+    q = q.filter(MethodConfirmation.status == status) if status != "published" else \
+        q.filter((MethodConfirmation.status == None) | (MethodConfirmation.status == "published"))  # noqa: E711
+    rows = q.order_by(MethodConfirmation.created_at.desc()).limit(200).all()
+    return [_review(c, True) | {"method_title": title} for c, title in rows]
+
+
 @router.get("/all", response_model=List[MethodResponse])
 def get_all_methods(db: Session = Depends(get_db)):
-    return db.query(Method).all()
+    return public(db.query(Method)).all()
 
 @router.get("/", response_model=List[MethodResponse])
 def get_methods(db: Session = Depends(get_db)):
-    return db.query(Method).all()
+    return public(db.query(Method)).all()
 
 @router.get("/{method_id}", response_model=MethodResponse)
-def get_method(method_id: int, db: Session = Depends(get_db)):
-    method = db.query(Method).filter(Method.id == method_id).first()
-    if not method:
-        raise HTTPException(status_code=404, detail="Method not found")
+def get_method(method_id: int, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
+    method = visible_or_404(db, method_id, admin)
     # Add completeness score to response
     result = {c.name: getattr(method, c.name) for c in method.__table__.columns}
-    result['completeness_score'] = calc_completeness(method)
+    comp = evaluate_completeness(method)
+    result['completeness_score'] = comp['score']
+    result['completeness'] = comp
     result['mrm_transitions'] = [
         {c.name: getattr(t, c.name) for c in t.__table__.columns}
         for t in method.mrm_transitions
@@ -412,13 +467,41 @@ def get_method(method_id: int, db: Session = Depends(get_db)):
     ]
     result['compound_validation'] = [
         {c.name: getattr(v, c.name) for c in v.__table__.columns}
-        for v in (method.compound_validation if hasattr(method, 'compound_validation') and method.compound_validation else [])
+        for v in (method.compound_validations or [])
     ]
+    # Solvent footprint, ranked against the published methods
+    stats = green_footprint.repository_stats(public(db.query(Method)).options(
+        selectinload(Method.gradient_steps), selectinload(Method.mrm_transitions)).all())
+    result['green'] = green_footprint.with_rank(green_footprint.evaluate(method), stats)
+    result['community'] = community.summary(db, method.id)
     return result
 
-@router.post("/", response_model=MethodResponse)
-def create_method(method: MethodCreate, db: Session = Depends(get_db)):
-    db_method = Method(**method.dict())
+class MethodSubmission(MethodCreate):
+    """A public submission: the method plus its gradient and transitions."""
+    gradient_steps: List[GradientStepSchema] = []
+    mrm_transitions: List[MRMTransitionSchema] = []
+
+
+@router.post("/", response_model=MethodResponse,
+             dependencies=[Depends(rate_limit("submit", max_calls=10, window_seconds=3600))])
+def create_method(method: MethodSubmission, db: Session = Depends(get_db)):
+    """Public endpoint. A submission always enters as "submitted": hidden from
+    the public until a reviewer publishes it (see /review-queue). Status and
+    verification fields sent by the client are ignored."""
+    data = method.dict(exclude={"gradient_steps", "mrm_transitions"})
+    data["status"] = "submitted"
+    data["verified_by"] = None
+    data["verified_at"] = None
+    for required in ("title", "analyte", "matrix", "instrument_manufacturer", "instrument_model"):
+        if not (data.get(required) or "").strip():
+            raise HTTPException(status_code=422, detail=f"'{required}' is required")
+    # The database requires these; a submitter may not know them yet.
+    data["ionization_mode"] = data.get("ionization_mode") or "ESI+"
+    data["column_brand"] = data.get("column_brand") or ""
+    data["column_name"] = data.get("column_name") or ""
+    db_method = Method(**data)
+    db_method.gradient_steps = [GradientStep(**step.dict()) for step in method.gradient_steps]
+    db_method.mrm_transitions = [MRMTransition(**{**t.dict(), "review_checked": 0}) for t in method.mrm_transitions]
     db.add(db_method)
     db.commit()
     db.refresh(db_method)
@@ -437,6 +520,26 @@ def update_method(method_id: int, method: MethodCreate, db: Session = Depends(ge
     db.refresh(db_method)
     return db_method
 
+@router.put("/{method_id}/status")
+def set_status(method_id: int, change: StatusChange, db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Moderation: publish (pending), publish as verified, reject, or send back to the queue."""
+    if change.status not in ALL_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {', '.join(ALL_STATUSES)}")
+    method = db.query(Method).filter(Method.id == method_id).first()
+    if not method:
+        raise HTTPException(status_code=404, detail="Method not found")
+    method.status = change.status
+    if change.status == "verified":
+        method.verified_by = os.getenv("REVIEWER_NAME") or "Koiné reviewer"
+        method.verified_at = datetime.utcnow()
+    else:
+        method.verified_by = None
+        method.verified_at = None
+    db.commit()
+    return {"id": method.id, "status": method.status, "verified_by": method.verified_by,
+            "verified_at": str(method.verified_at) if method.verified_at else None}
+
+
 @router.put("/{method_id}/verify")
 def verify_method(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     method = db.query(Method).filter(Method.id == method_id).first()
@@ -448,7 +551,7 @@ def verify_method(method_id: int, db: Session = Depends(get_db), _: None = Depen
         method.verified_at = None
     else:
         method.status = 'verified'
-        method.verified_by = 'Admin'
+        method.verified_by = os.getenv("REVIEWER_NAME") or "Koiné reviewer"
         method.verified_at = datetime.utcnow()
     db.commit()
     db.refresh(method)
@@ -465,16 +568,13 @@ def delete_method(method_id: int, db: Session = Depends(get_db), _: None = Depen
 
 @router.get("/{method_id}/export-mrm")
 def export_mrm(method_id: int, db: Session = Depends(get_db)):
+    """Kept for older clients; same content as /api/methods/{id}/export/generic."""
+    from backend.exports import FORMATS, filename, render
     method = db.query(Method).filter(Method.id == method_id).first()
     if not method:
         raise HTTPException(status_code=404, detail="Method not found")
-    lines = ["Compound,Type,Precursor m/z,Product m/z,CE (eV),DP (V),CXP (V),RT (min),Dwell (ms)"]
-    for t in method.mrm_transitions:
-        role = "IS" if t.is_internal_standard else ("Q1" if t.is_quantifier else "Q2")
-        lines.append(f"{t.compound_name},{role},{t.precursor_mz},{t.product_mz},{t.collision_energy_ev or ''},{t.declustering_potential or ''},{t.cell_exit_potential or ''},{t.retention_time_min or ''},{t.dwell_time_ms or ''}")
-    content = "\n".join(lines)
-    filename = f"MRM_{method.analyte_normalized or method.id}.csv"
-    return {"content": content, "filename": filename}
+    fmt = FORMATS["generic"]
+    return {"content": render(fmt, method), "filename": filename(fmt, method)}
 
 @router.post("/{method_id}/upload-chromatogram")
 def upload_chromatogram(method_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
@@ -515,12 +615,37 @@ def update_transitions(method_id: int, payload: TransitionsUpdate, db: Session =
             'retention_time_min','retention_time_window_min','dwell_time_ms','is_quantifier',
             'cone_voltage','cell_accelerator_voltage',
             'q1_pre_bias','q3_pre_bias',
-            'ms_resolution','max_inject_time_ms','rf_lens_v','derivative'
+            'ms_resolution','max_inject_time_ms','rf_lens_v','derivative','is_derivatized',
+            'pubchem_cid','pubchem_formula','pubchem_exact_mass','pubchem_adduct','review_checked'
         }}
         if valid.get('precursor_mz') and valid.get('product_mz') and valid.get('compound_name'):
             db.add(MRMTransition(method_id=method_id, **valid))
     db.commit()
     return {"message": "Transitions updated"}
+
+POLARITIES = {"ESI+", "ESI-", "APCI+", "APCI-", "APPI+", "APPI-"}
+
+class TransitionReview(BaseModel):
+    polarity: Optional[str] = None
+    review_checked: Optional[int] = None
+
+@router.patch("/{method_id}/transitions/{transition_id}")
+def review_transition(method_id: int, transition_id: int, payload: TransitionReview,
+                      db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Reviewer action on one transition flagged by the automatic checks:
+    change its polarity and/or confirm that it is correct as recorded."""
+    t = db.query(MRMTransition).filter(MRMTransition.id == transition_id, MRMTransition.method_id == method_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Transition not found")
+    if payload.polarity is not None:
+        if payload.polarity not in POLARITIES:
+            raise HTTPException(status_code=422, detail=f"Unknown polarity '{payload.polarity}'")
+        t.polarity = payload.polarity
+    if payload.review_checked is not None:
+        t.review_checked = 1 if payload.review_checked else 0
+    db.commit()
+    db.refresh(t)
+    return {"id": t.id, "polarity": t.polarity, "review_checked": t.review_checked or 0}
 
 class ValidationUpdate(BaseModel):
     items: list
@@ -542,7 +667,8 @@ class CompoundValidationResponse(CompoundValidationSchema):
         orm_mode = True
 
 @router.get("/{method_id}/validation", response_model=List[CompoundValidationResponse])
-def get_validation(method_id: int, db: Session = Depends(get_db)):
+def get_validation(method_id: int, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
+    visible_or_404(db, method_id, admin)
     return db.query(CompoundValidation).filter(CompoundValidation.method_id == method_id).all()
 
 @router.put("/{method_id}/validation")
@@ -586,7 +712,7 @@ def chat_with_massa(request: dict, db: Session = Depends(get_db)):
     import os
     if not os.getenv("ANTHROPIC_API_KEY"):
         return {
-            "reply": "AI features are not available in the public demo. Contact the MetaboLC team for access.",
+            "reply": "AI features are not available in the public demo. Contact the Koiné team for access.",
             "methods_found": 0,
             "matched_methods": [],
         }
@@ -600,7 +726,7 @@ def chat_with_massa(request: dict, db: Session = Depends(get_db)):
                 ['with', 'this', 'that', 'from', 'what', 'which', 'have', 'been', 'your', 'their']]
 
     relevant_methods = []
-    all_methods = db.query(Method).all()
+    all_methods = public(db.query(Method)).all()
     for m in all_methods:
         searchable = ' '.join(filter(None, [
             m.analyte or '', m.title or '', m.matrix or '',
@@ -637,14 +763,14 @@ Method ID {m.id}: {m.title or 'Untitled'}
 - Laboratory: {m.laboratory or 'N/A'}, {m.country or 'N/A'}
 """
 
-    system_prompt = f"""You are Dra. Massa, the AI advisor of MetaboLC — a clinical LC-MS/MS method repository.
+    system_prompt = f"""You are the AI assistant of Koiné — a clinical LC-MS/MS method repository.
 
-CRITICAL RULE: You ONLY answer based on the methods found in the MetaboLC database provided below. 
+CRITICAL RULE: You ONLY answer based on the methods found in the Koiné database provided below. 
 - If relevant methods are found: cite them by ID, compare them, and extract specific parameters from them.
-- If NO relevant methods are found: say exactly "I don't have methods for this in the MetaboLC repository yet. You can submit one at /submit." Do NOT invent or suggest parameters from general knowledge.
+- If NO relevant methods are found: say exactly "I don't have methods for this in the Koiné repository yet. You can submit one at /submit." Do NOT invent or suggest parameters from general knowledge.
 - Never fabricate method parameters, columns, gradients, or transitions that are not in the database.
 
-{db_context if db_context else "No relevant methods found in the MetaboLC database for this query."}
+{db_context if db_context else "No relevant methods found in the Koiné database for this query."}
 
 When methods ARE found, structure your answer as:
 1. How many methods exist for this query
@@ -671,22 +797,51 @@ For troubleshooting: reference specific methods that solved similar problems."""
     }
 
 
-@router.get("/{method_id}/confirmations")
-def get_confirmations(method_id: int, db: Session = Depends(get_db)):
-    confs = db.query(MethodConfirmation).filter(
-        MethodConfirmation.method_id == method_id
-    ).order_by(MethodConfirmation.created_at.desc()).all()
-    return [{"id":c.id,"method_id":c.method_id,"laboratory":c.laboratory,
-             "country":c.country,"instrument":c.instrument,"comment":c.comment,
-             "rating":c.rating,"created_at":str(c.created_at)} for c in confs]
+def _review(c: MethodConfirmation, admin: bool) -> dict:
+    d = {"id": c.id, "method_id": c.method_id, "laboratory": c.laboratory, "country": c.country,
+         "instrument": c.instrument, "outcome": c.outcome or "as_published", "changes": c.changes,
+         "comment": c.comment, "created_at": str(c.created_at)}
+    if admin:
+        d["status"] = c.status or "published"
+    return d
 
-@router.post("/{method_id}/confirmations")
+
+@router.get("/{method_id}/confirmations")
+def get_confirmations(method_id: int, db: Session = Depends(get_db), admin: bool = Depends(is_admin)):
+    """Community reviews. The public sees published ones; reviewers also see pending and hidden."""
+    visible_or_404(db, method_id, admin)
+    q = db.query(MethodConfirmation).filter(MethodConfirmation.method_id == method_id)
+    if not admin:
+        q = q.filter((MethodConfirmation.status == None) | (MethodConfirmation.status == "published"))  # noqa: E711
+    return [_review(c, admin) for c in q.order_by(MethodConfirmation.created_at.desc()).all()]
+
+
+@router.post("/{method_id}/confirmations",
+             dependencies=[Depends(rate_limit("community_review", max_calls=5, window_seconds=3600))])
 def add_confirmation(method_id: int, conf: ConfirmationCreate, db: Session = Depends(get_db)):
-    method = db.query(Method).filter(Method.id == method_id).first()
-    if not method:
-        raise HTTPException(status_code=404, detail="Method not found")
-    c = MethodConfirmation(method_id=method_id, **conf.dict())
+    """New reviews wait for a moderator before they are shown."""
+    visible_or_404(db, method_id)
+    if conf.outcome not in community.OUTCOMES:
+        raise HTTPException(status_code=422, detail="Unknown outcome.")
+    clean = {k: (v.strip() or None) if isinstance(v, str) else v for k, v in conf.dict().items()}
+    if clean["outcome"] != "as_published" and not clean.get("changes"):
+        raise HTTPException(status_code=422, detail="Please say what you changed or what went wrong.")
+    c = MethodConfirmation(method_id=method_id, rating=None, status="pending", **clean)
     db.add(c)
     db.commit()
     db.refresh(c)
-    return {"id":c.id,"message":"Confirmation added"}
+    return {"id": c.id, "status": "pending"}
+
+
+@router.patch("/{method_id}/confirmations/{review_id}", dependencies=[Depends(require_admin)])
+def moderate_confirmation(method_id: int, review_id: int, body: ConfirmationModerate, db: Session = Depends(get_db)):
+    if body.status not in community.STATUSES:
+        raise HTTPException(status_code=422, detail="Unknown status.")
+    c = db.query(MethodConfirmation).filter(MethodConfirmation.id == review_id,
+                                            MethodConfirmation.method_id == method_id).first()
+    if c is None:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    c.status = body.status
+    db.commit()
+    return _review(c, True)
+

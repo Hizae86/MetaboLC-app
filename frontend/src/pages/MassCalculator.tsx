@@ -1,376 +1,373 @@
-import { useState } from 'react'
-import { Calculator, Copy, CheckCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Calculator, Check, Copy, Loader2 } from 'lucide-react'
+import axios from 'axios'
+import SEO from '../components/SEO'
+import { Input } from '@/components/ui/input'
+import { API } from '@/lib/api'
+import {
+  ADDUCTS, ELEMENTS, NEUTRAL_LOSSES, adductMz, checkTransition, ionFormulaMz, matchAdducts, parseFormula,
+  type Mode,
+} from '@/lib/massSpec'
+import { cn } from '@/lib/utils'
+import IssueList from '@/components/IssueList'
 
-// Monoisotopic masses of elements
-const ELEMENTS: Record<string, { mass: number; name: string }> = {
-  H:  { mass: 1.0078250319, name: 'Hydrogen' },
-  He: { mass: 4.0026032, name: 'Helium' },
-  Li: { mass: 7.0160035, name: 'Lithium' },
-  Be: { mass: 9.0121831, name: 'Beryllium' },
-  B:  { mass: 11.0093055, name: 'Boron' },
-  C:  { mass: 12.0000000, name: 'Carbon' },
-  N:  { mass: 14.0030740052, name: 'Nitrogen' },
-  O:  { mass: 15.9949146221, name: 'Oxygen' },
-  F:  { mass: 18.99840322, name: 'Fluorine' },
-  Na: { mass: 22.9897692, name: 'Sodium' },
-  Mg: { mass: 23.9850417, name: 'Magnesium' },
-  Al: { mass: 26.9815385, name: 'Aluminium' },
-  Si: { mass: 27.9769265, name: 'Silicon' },
-  P:  { mass: 30.97376151, name: 'Phosphorus' },
-  S:  { mass: 31.97207069, name: 'Sulfur' },
-  Cl: { mass: 34.96885268, name: 'Chlorine' },
-  K:  { mass: 38.9637069, name: 'Potassium' },
-  Ca: { mass: 39.9625912, name: 'Calcium' },
-  Fe: { mass: 55.9349375, name: 'Iron' },
-  Cu: { mass: 62.9295975, name: 'Copper' },
-  Zn: { mass: 63.9291420, name: 'Zinc' },
-  Br: { mass: 78.9183376, name: 'Bromine' },
-  Se: { mass: 79.9165218, name: 'Selenium' },
-  I:  { mass: 126.9044719, name: 'Iodine' },
-}
+interface RepoCompound { name: string; exact_mass: number | null; formula: string | null }
+interface Structure { formula: string; monoisotopic_mass: number; formal_charge: number; canonical_smiles: string; fragments_removed: number }
 
-const ELECTRON_MASS = 0.0005485799
-
-// Common adducts for LC-MS/MS
-const ADDUCTS = [
-  // Positive mode
-  { name: '[M+H]+',       mode: '+', formula: '+H',    charge: 1,  delta: +1.007276,  common: true },
-  { name: '[M+Na]+',      mode: '+', formula: '+Na',   charge: 1,  delta: +22.989218, common: true },
-  { name: '[M+K]+',       mode: '+', formula: '+K',    charge: 1,  delta: +38.963158, common: true },
-  { name: '[M+NH4]+',     mode: '+', formula: '+NH4',  charge: 1,  delta: +18.034164, common: true },
-  { name: '[M+2H]2+',     mode: '+', formula: '+2H',   charge: 2,  delta: +2.014552,  common: false },
-  { name: '[M+H+Na]2+',   mode: '+', formula: '+H+Na', charge: 2,  delta: +23.996494, common: false },
-  { name: '[M+2Na]2+',    mode: '+', formula: '+2Na',  charge: 2,  delta: +45.978436, common: false },
-  { name: '[M+Li]+',      mode: '+', formula: '+Li',   charge: 1,  delta: +7.016003,  common: false },
-  { name: '[M+ACN+H]+',   mode: '+', formula: '+ACN+H',charge: 1,  delta: +42.033825, common: false },
-  { name: '[M+2ACN+H]+',  mode: '+', formula: '',      charge: 1,  delta: +83.060399, common: false },
-  { name: '[M+MeOH+H]+',  mode: '+', formula: '',      charge: 1,  delta: +33.034164, common: false },
-  // Negative mode
-  { name: '[M-H]-',       mode: '-', formula: '-H',    charge: 1,  delta: -1.007276,  common: true },
-  { name: '[M+Cl]-',      mode: '-', formula: '+Cl',   charge: 1,  delta: +34.969402, common: true },
-  { name: '[M+HCOO]-',    mode: '-', formula: '+HCOO', charge: 1,  delta: +44.997655, common: true },
-  { name: '[M+CH3COO]-',  mode: '-', formula: '+OAc',  charge: 1,  delta: +59.013305, common: true },
-  { name: '[M-2H]2-',     mode: '-', formula: '-2H',   charge: 2,  delta: -2.014552,  common: false },
-  { name: '[M+Na-2H]-',   mode: '-', formula: '',      charge: 1,  delta: +20.974666, common: false },
-  { name: '[M+K-2H]-',    mode: '-', formula: '',      charge: 1,  delta: +36.948606, common: false },
-  { name: '[M+Br]-',      mode: '-', formula: '+Br',   charge: 1,  delta: +78.918338, common: false },
-  // Neutral losses
-  { name: '[M-H2O+H]+',   mode: '+', formula: '-H2O',  charge: 1,  delta: -16.987484, common: false },
-  { name: '[M+H-NH3]+',   mode: '+', formula: '-NH3',  charge: 1,  delta: -16.018724, common: false },
+const EXAMPLES = [
+  { label: 'Cortisol', formula: 'C21H30O5', smiles: 'C[C@]12CCC(=O)C=C1CC[C@@H]1[C@@H]2[C@@H](O)C[C@@]2(C)[C@H]1CC[C@]2(O)C(=O)CO' },
+  { label: 'Testosterone', formula: 'C19H28O2', smiles: 'C[C@]12CC[C@H]3[C@@H](CCC4=CC(=O)CC[C@@]43C)[C@@H]1CC[C@@H]2O' },
+  { label: 'Clozapine', formula: 'C18H19ClN4', smiles: 'CN1CCN(CC1)C1=Nc2cc(Cl)ccc2Nc2ccccc12' },
+  { label: 'Tacrolimus', formula: 'C44H69NO12', smiles: '' },
+  { label: 'Valproic acid', formula: 'C8H16O2', smiles: 'CCCC(CCC)C(=O)O' },
+  { label: 'Ethyl glucuronide', formula: 'C8H14O7', smiles: 'CCO[C@@H]1O[C@H](C(=O)O)[C@@H](O)[C@H](O)[C@H]1O' },
 ]
 
-interface ParsedFormula {
-  elements: Record<string, number>
-  mass: number
-  valid: boolean
-  error?: string
-}
-
-function parseFormula(formula: string): ParsedFormula {
-  const elements: Record<string, number> = {}
-  let mass = 0
-
-  if (!formula.trim()) return { elements, mass: 0, valid: false }
-
-  // Handle brackets e.g. Ca(OH)2
-  const expanded = expandFormula(formula)
-  if (!expanded.valid) return { elements, mass: 0, valid: false, error: expanded.error }
-
-  const regex = /([A-Z][a-z]?)(\d*)/g
-  let match
-
-  while ((match = regex.exec(expanded.formula)) !== null) {
-    if (!match[1]) continue
-    const el = match[1]
-    const count = match[2] ? parseInt(match[2]) : 1
-
-    if (!ELEMENTS[el]) {
-      return { elements, mass: 0, valid: false, error: `Unknown element: ${el}` }
-    }
-
-    elements[el] = (elements[el] || 0) + count
-    mass += ELEMENTS[el].mass * count
-  }
-
-  return { elements, mass, valid: true }
-}
-
-function expandFormula(formula: string): { formula: string; valid: boolean; error?: string } {
-  // Expand parentheses like Ca(OH)2 → CaO2H2
-  let result = formula
-  const bracketRegex = /\(([^()]+)\)(\d*)/g
-
-  let maxIter = 10
-  while (bracketRegex.test(result) && maxIter-- > 0) {
-    result = result.replace(/\(([^()]+)\)(\d*)/g, (_, inner, mult) => {
-      const m = mult ? parseInt(mult) : 1
-      return inner.replace(/([A-Z][a-z]?)(\d*)/g, (__, el, n) => {
-        return el + ((n ? parseInt(n) : 1) * m)
-      })
-    })
-  }
-
-  return { formula: result, valid: true }
-}
-
-function formatMass(mass: number, decimals = 6): string {
-  return mass.toFixed(decimals)
-}
-
 export default function MassCalculator() {
+  const [inputMode, setInputMode] = useState<'formula' | 'smiles'>('formula')
   const [formula, setFormula] = useState('C21H30O5')
-  const [mode, setMode] = useState<'+' | '-'>('+')
+  const [smiles, setSmiles] = useState('')
+  const [structure, setStructure] = useState<Structure | null>(null)
+  const [smilesState, setSmilesState] = useState<{ loading: boolean; error: string | null }>({ loading: false, error: null })
+  const [mode, setMode] = useState<Mode>('+')
   const [showAll, setShowAll] = useState(false)
+  const [precursorName, setPrecursorName] = useState('[M+H]+')
+  const [lossFormula, setLossFormula] = useState('')
+  const [fragFormula, setFragFormula] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [reverseInput, setReverseInput] = useState('')
-  const [tolerance, setTolerance] = useState(5)
-  const [toleranceUnit, setToleranceUnit] = useState<'ppm' | 'mDa'>('ppm')
+  const [tolerance, setTolerance] = useState(10)
+  const [tolUnit, setTolUnit] = useState<'ppm' | 'mDa'>('ppm')
+  const [repo, setRepo] = useState<RepoCompound[]>([])
+  const [check, setCheck] = useState({ q1: '', q3: '', polarity: 'ESI+' })
 
-  const parsed = parseFormula(formula)
+  useEffect(() => {
+    axios.get(`${API}/methods/compounds`).then(r => setRepo(r.data.filter((c: any) => c.exact_mass))).catch(() => {})
+  }, [])
+
+  // Keep a precursor of the current polarity selected.
+  useEffect(() => { setPrecursorName(mode === '+' ? '[M+H]+' : '[M-H]-') }, [mode])
+
+  const parsed = useMemo(() => parseFormula(formula), [formula])
+  const charged = /\d*[+-]$/.test(formula.trim())
+
+  const convertSmiles = async (value = smiles) => {
+    if (!value.trim()) return
+    setSmilesState({ loading: true, error: null })
+    try {
+      const r = await axios.get<Structure>(`${API}/tools/structure`, { params: { smiles: value.trim() } })
+      setStructure(r.data); setFormula(r.data.formula); setSmilesState({ loading: false, error: null })
+    } catch (e: any) {
+      setStructure(null)
+      setSmilesState({ loading: false, error: e?.response?.data?.detail || 'Could not reach the structure service.' })
+    }
+  }
 
   const copyVal = (val: string, key: string) => {
     navigator.clipboard.writeText(val)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 2000)
+    setCopied(key); setTimeout(() => setCopied(null), 1500)
   }
+  const CopyBtn = ({ val, k }: { val: string; k: string }) => (
+    <button type="button" onClick={() => copyVal(val, k)} className="text-muted-foreground/60 hover:text-primary" aria-label={`Copy ${val}`}>
+      {copied === k ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+    </button>
+  )
 
-  const displayedAdducts = showAll
-    ? ADDUCTS.filter(a => a.mode === mode)
-    : ADDUCTS.filter(a => a.mode === mode && a.common)
+  const shown = ADDUCTS.filter(a => a.mode === mode && (showAll || a.common || a.name === precursorName))
+  const precursor = ADDUCTS.find(a => a.name === precursorName && a.mode === mode) || ADDUCTS.find(a => a.mode === mode)!
+  const precursorMz = parsed.valid ? adductMz(parsed.mono, precursor) : null
 
-  // Reverse search — find formula from m/z
+  // Product ions: neutral losses from the selected precursor (charge kept), a custom loss and a fragment-ion formula.
+  const products = useMemo(() => {
+    if (precursorMz === null) return []
+    const ionMass = precursorMz * precursor.charge
+    // Only losses the molecule can actually lose (no HCl from a molecule without Cl).
+    const fits = (f: string) => Object.entries(parseFormula(f).elements).every(([el, n]) => (parsed.elements[el] || 0) >= n)
+    const list = NEUTRAL_LOSSES.filter(l => fits(l.formula)).map(l => {
+      const p = parseFormula(l.formula)
+      return { label: `− ${l.label}`, mz: (ionMass - p.mono) / precursor.charge, loss: p.mono }
+    })
+    const custom = parseFormula(lossFormula)
+    if (lossFormula && custom.valid) list.unshift({ label: `− ${lossFormula} (custom)`, mz: (ionMass - custom.mono) / precursor.charge, loss: custom.mono })
+    return list.filter(x => x.mz > 15)
+  }, [precursorMz, precursor, lossFormula, parsed])
+  const fragMz = fragFormula ? ionFormulaMz(fragFormula, 1, mode) : null
+
   const reverseMz = parseFloat(reverseInput)
-  const reverseMatches = !isNaN(reverseMz) && reverseMz > 0
-    ? ADDUCTS.filter(a => a.mode === mode).map(a => {
-        const neutralMass = (reverseMz * a.charge) - a.delta
-        return { adduct: a.name, neutralMass, mz: reverseMz }
-      })
-    : []
+  const reverse = useMemo(() => {
+    if (isNaN(reverseMz) || reverseMz <= 0) return []
+    return ADDUCTS.filter(a => a.mode === mode && a.common).map(a => {
+      const neutral = reverseMz * a.charge - a.delta
+      const tolDa = tolUnit === 'ppm' ? neutral * tolerance / 1e6 : tolerance / 1000
+      const matches = repo
+        .map(c => ({ ...c, diff: (c.exact_mass as number) - neutral }))
+        .filter(c => Math.abs(c.diff) <= tolDa)
+        .sort((x, y) => Math.abs(x.diff) - Math.abs(y.diff))
+        .slice(0, 5)
+      return { adduct: a.name, neutral, matches }
+    })
+  }, [reverseMz, mode, tolerance, tolUnit, repo])
+
+  // Transition check against the current compound.
+  const checkIssues = useMemo(() => {
+    if (!check.q1 || !check.q3) return null
+    return checkTransition({ precursor_mz: check.q1, product_mz: check.q3, polarity: check.polarity },
+      { exactMass: parsed.valid && !charged ? parsed.mono : null })
+  }, [check, parsed, charged])
+  const checkMatches = parsed.valid && check.q1 && !isNaN(Number(check.q1)) ? matchAdducts(Number(check.q1), parsed.mono) : []
+
+  const panel = 'rounded-xl border border-border bg-card p-5'
+  const tab = (on: boolean) => cn('px-3 py-1.5 text-xs font-medium', on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')
 
   return (
-    <div style={{maxWidth:'1000px', margin:'0 auto', padding:'1.5rem'}}>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900 tracking-tight mb-1 flex items-center gap-2">
-          <Calculator size={20} className="text-indigo-500" />
-          Mass Calculator
-        </h1>
-        <p className="text-xs text-slate-400">
-          Monoisotopic mass from molecular formula + adduct m/z prediction for LC-MS/MS
-        </p>
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <SEO title="Mass Calculator — Adduct, Precursor and Product m/z for LC-MS/MS"
+        description="Monoisotopic mass from a molecular formula or SMILES, adduct and product-ion m/z, and automatic checks of MRM transitions." />
+      <div className="mb-5">
+        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground"><Calculator size={19} className="text-primary" /> Mass calculator</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">From a formula or SMILES: monoisotopic mass, precursor and product m/z for each adduct, and a check of your transition.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Left — Formula input */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-4">
-
-          {/* Formula input */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-800 mb-4">Molecular Formula</h2>
-
-            <div className="mb-4">
-              <label className="text-xs text-slate-500 block mb-1">Enter formula</label>
-              <input
-                value={formula}
-                onChange={e => setFormula(e.target.value)}
-                placeholder="e.g. C21H30O5 or Ca(OH)2"
-                className={`w-full text-base px-4 py-3 border-2 rounded-xl font-mono
-                  focus:outline-none transition-all
-                  ${parsed.valid
-                    ? 'border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
-                    : formula ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
-              />
-              {!parsed.valid && formula && (
-                <p className="text-xs text-red-500 mt-1">{parsed.error || 'Invalid formula'}</p>
-              )}
+          {/* ── Compound ── */}
+          <div className={panel}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Compound</h2>
+              <div className="flex overflow-hidden rounded-lg border border-border" role="tablist" aria-label="Input type">
+                <button type="button" role="tab" aria-selected={inputMode === 'formula'} onClick={() => setInputMode('formula')} className={tab(inputMode === 'formula')}>Formula</button>
+                <button type="button" role="tab" aria-selected={inputMode === 'smiles'} onClick={() => setInputMode('smiles')} className={tab(inputMode === 'smiles')}>SMILES</button>
+              </div>
             </div>
 
-            {/* Quick formulas */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {['C21H30O5', 'C19H28O2', 'C27H44O', 'C17H20N4S', 'C22H28N2O', 'C16H13ClN2O'].map(f => (
-                <button key={f} onClick={() => setFormula(f)}
-                  className="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600
-                    hover:bg-indigo-50 hover:text-indigo-700 transition-all font-mono">
-                  {f}
-                </button>
+            {inputMode === 'formula' ? (
+              <>
+                <Input value={formula} onChange={e => { setFormula(e.target.value); setStructure(null) }} placeholder="e.g. C21H30O5, C2H3D3O or C5H14NO+"
+                  aria-label="Molecular formula" className={cn('num h-11 text-base', !parsed.valid && formula && 'border-destructive')} />
+                {!parsed.valid && formula && <p className="mt-1 text-xs text-destructive">{parsed.error || 'Invalid formula'}</p>}
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input value={smiles} onChange={e => setSmiles(e.target.value)} onKeyDown={e => e.key === 'Enter' && convertSmiles()}
+                    placeholder="e.g. CCCC(CCC)C(=O)O" aria-label="SMILES" className="num h-11 text-sm" />
+                  <button type="button" onClick={() => convertSmiles()} disabled={!smiles.trim() || smilesState.loading}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
+                    {smilesState.loading && <Loader2 size={14} className="animate-spin" />} Calculate
+                  </button>
+                </div>
+                {smilesState.error && <p className="mt-1 text-xs text-destructive">{smilesState.error}</p>}
+                {structure && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    RDKit: <span className="num font-medium text-foreground">{structure.formula}</span>
+                    {structure.fragments_removed > 0 && ` · ${structure.fragments_removed} counter-ion${structure.fragments_removed > 1 ? 's' : ''} removed`}
+                    {structure.formal_charge !== 0 && ' · permanently charged: use the [M]+ / [M]− row'}
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {EXAMPLES.filter(x => inputMode === 'formula' || x.smiles).map(x => (
+                <button key={x.label} type="button"
+                  onClick={() => { if (inputMode === 'formula') { setFormula(x.formula); setStructure(null) } else { setSmiles(x.smiles); convertSmiles(x.smiles) } }}
+                  className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{x.label}</button>
               ))}
             </div>
 
             {parsed.valid && (
               <>
-                {/* Result */}
-                <div className="bg-gradient-to-br from-indigo-50 to-slate-50 rounded-xl p-4 mb-4">
-                  <p className="text-xs text-slate-500 mb-1">Monoisotopic mass</p>
+                <div className="mt-4 rounded-lg bg-primary/5 p-4">
+                  <p className="text-xs text-muted-foreground">Monoisotopic mass{charged ? ' (neutral atoms; see [M]± for the ion)' : ''}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-3xl font-bold font-mono text-indigo-700">
-                      {formatMass(parsed.mass)}
-                    </p>
-                    <span className="text-sm text-slate-400">Da</span>
-                    <button onClick={() => copyVal(formatMass(parsed.mass), 'mass')}
-                      className="ml-auto text-slate-400 hover:text-indigo-600 transition-colors">
-                      {copied === 'mass' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} />}
-                    </button>
+                    <p className="num text-3xl font-bold text-primary">{parsed.mono.toFixed(6)}</p>
+                    <span className="text-sm text-muted-foreground">Da</span>
+                    <span className="ml-auto"><CopyBtn val={parsed.mono.toFixed(6)} k="mass" /></span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2 font-mono">
-                    Average mass ≈ {(parsed.mass * 1.000335).toFixed(4)} Da
-                  </p>
+                  <p className="num mt-1.5 text-xs text-muted-foreground">Average mass: {parsed.avg.toFixed(3)} g/mol</p>
                 </div>
-
-                {/* Element breakdown */}
-                <div>
-                  <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">Element composition</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {Object.entries(parsed.elements).map(([el, count]) => (
-                      <div key={el} className="flex items-center justify-between
-                        bg-slate-50 rounded-lg px-3 py-1.5">
-                        <span className="text-xs font-semibold text-slate-700">{el}<sub>{count > 1 ? count : ''}</sub></span>
-                        <span className="text-xs font-mono text-slate-400">
-                          {formatMass(ELEMENTS[el].mass * count, 4)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="mt-4 grid grid-cols-3 gap-1.5">
+                  {Object.entries(parsed.elements).map(([el, count]) => (
+                    <div key={el} className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5">
+                      <span className="text-xs font-semibold text-foreground">{el}{count > 1 ? <sub>{count}</sub> : null}</span>
+                      <span className="num text-xs text-muted-foreground">{(ELEMENTS[el].mono * count).toFixed(4)}</span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
           </div>
 
-          {/* Reverse search */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-800 mb-1">Reverse Search</h2>
-            <p className="text-xs text-slate-400 mb-3">Enter observed m/z → calculate neutral mass for each adduct</p>
-            <div className="flex gap-2 mb-3">
-              <input
-                value={reverseInput}
-                onChange={e => setReverseInput(e.target.value)}
-                placeholder="e.g. 363.2171"
-                className="flex-1 text-sm px-3 py-2 border border-slate-200 rounded-lg
-                  font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <div className="flex items-center gap-1">
-                <input type="number" value={tolerance} onChange={e => setTolerance(parseFloat(e.target.value))}
-                  className="w-16 text-sm px-2 py-2 border border-slate-200 rounded-lg font-mono
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <select value={toleranceUnit} onChange={e => setToleranceUnit(e.target.value as any)}
-                  className="text-xs px-2 py-2 border border-slate-200 rounded-lg bg-white
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>ppm</option>
-                  <option>mDa</option>
-                </select>
-              </div>
+          {/* ── Transition check ── */}
+          <div className={panel}>
+            <h2 className="text-sm font-semibold text-foreground">Check a transition</h2>
+            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">Q1 and Q3 of your method against the compound above: the product must be lighter than a singly charged precursor, and the polarity must match the adduct.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={check.q1} onChange={e => setCheck(c => ({ ...c, q1: e.target.value.replace(',', '.') }))} placeholder="Q1" aria-label="Precursor m/z" inputMode="decimal" className="num w-28" />
+              <span className="text-muted-foreground">›</span>
+              <Input value={check.q3} onChange={e => setCheck(c => ({ ...c, q3: e.target.value.replace(',', '.') }))} placeholder="Q3" aria-label="Product m/z" inputMode="decimal" className="num w-28" />
+              <select value={check.polarity} onChange={e => setCheck(c => ({ ...c, polarity: e.target.value }))} aria-label="Transition polarity"
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+                {['ESI+', 'ESI-', 'APCI+', 'APCI-'].map(p => <option key={p}>{p}</option>)}
+              </select>
+              {precursorMz !== null && (
+                <button type="button" onClick={() => setCheck(c => ({ ...c, q1: precursorMz.toFixed(2), polarity: mode === '+' ? 'ESI+' : 'ESI-' }))}
+                  className="text-xs font-medium text-primary hover:underline">Use {precursor.name}</button>
+              )}
             </div>
-            {reverseMatches.length > 0 && (
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {reverseMatches.map(r => (
-                  <div key={r.adduct} className="flex items-center justify-between
-                    bg-slate-50 rounded-lg px-3 py-2">
-                    <span className="text-xs font-mono text-indigo-600 font-medium">{r.adduct}</span>
-                    <div className="text-right">
-                      <span className="text-xs font-mono text-slate-700">
-                        M = {r.neutralMass.toFixed(6)} Da
-                      </span>
+            {checkIssues && (
+              <div className="mt-3 space-y-2">
+                {checkMatches.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Q1 matches {checkMatches.slice(0, 3).map(m => `${m.adduct.name} (${m.mz.toFixed(4)}, Δ ${m.diff >= 0 ? '+' : ''}${m.diff.toFixed(3)})`).join(' · ')}</p>
+                )}
+                <IssueList issues={checkIssues} okText="Consistent: product below the precursor and polarity matches the adduct." />
+                {!parsed.valid && <p className="text-xs text-muted-foreground">Enter the compound to check Q1 against its adducts.</p>}
+              </div>
+            )}
+          </div>
+
+          {/* ── Reverse search ── */}
+          <div className={panel}>
+            <h2 className="text-sm font-semibold text-foreground">Reverse search</h2>
+            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">Observed m/z → neutral mass per adduct, matched against the repository's analytes.</p>
+            <div className="flex flex-wrap gap-2">
+              <Input value={reverseInput} onChange={e => setReverseInput(e.target.value)} placeholder="e.g. 363.2171" inputMode="decimal" aria-label="Observed m/z" className="num w-36" />
+              <Input type="number" value={tolerance} onChange={e => setTolerance(parseFloat(e.target.value) || 0)} aria-label="Tolerance" className="num w-20" />
+              <select value={tolUnit} onChange={e => setTolUnit(e.target.value as any)} aria-label="Tolerance unit"
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+                <option>ppm</option><option>mDa</option>
+              </select>
+            </div>
+            {reverse.length > 0 && (
+              <div className="mt-3 max-h-80 space-y-1.5 overflow-y-auto">
+                {reverse.map(r => (
+                  <div key={r.adduct} className="rounded-md bg-muted/40 px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="num text-xs font-medium text-primary">{r.adduct}</span>
+                      <span className="num text-xs text-foreground">M = {r.neutral.toFixed(4)} Da</span>
                     </div>
+                    {r.matches.length > 0 && (
+                      <div className="mt-1 space-y-0.5 border-t border-border pt-1">
+                        {r.matches.map(c => (
+                          <div key={c.name} className="flex items-center justify-between text-xs">
+                            <Link to={`/methods?q=${encodeURIComponent(c.name)}`} className="text-foreground hover:text-primary">{c.name}</Link>
+                            <span className="num text-muted-foreground">
+                              {c.formula} · Δ {tolUnit === 'ppm' ? `${(c.diff / r.neutral * 1e6).toFixed(1)} ppm` : `${(c.diff * 1000).toFixed(1)} mDa`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
+                {reverse.every(r => r.matches.length === 0) && (
+                  <p className="text-xs text-muted-foreground">No repository analyte matches within ±{tolerance} {tolUnit}. The neutral masses above may still identify your compound elsewhere.</p>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Right — Adduct table */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-800">Adduct m/z Prediction</h2>
-            <div className="flex gap-1 border border-slate-200 rounded-lg overflow-hidden">
-              <button onClick={() => setMode('+')}
-                className={`px-3 py-1.5 text-xs font-medium transition-all
-                  ${mode === '+' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                ESI+
-              </button>
-              <button onClick={() => setMode('-')}
-                className={`px-3 py-1.5 text-xs font-medium transition-all border-l border-slate-200
-                  ${mode === '-' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                ESI−
-              </button>
+        <div className="space-y-4">
+          {/* ── Precursor ions ── */}
+          <div className={panel}>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Precursor ions</h2>
+                <p className="text-xs text-muted-foreground">Click a row to use it as the precursor for product ions.</p>
+              </div>
+              <div className="flex overflow-hidden rounded-lg border border-border" role="tablist" aria-label="Adduct polarity">
+                {(['+', '-'] as const).map(m => (
+                  <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={tab(mode === m)}>ESI{m === '+' ? '+' : '−'}</button>
+                ))}
+              </div>
             </div>
+            {parsed.valid ? (
+              <>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs text-muted-foreground">
+                      <th className="py-2 text-left font-medium">Adduct</th>
+                      <th className="py-2 text-left font-medium">z</th>
+                      <th className="py-2 text-right font-medium">m/z</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {shown.map(a => {
+                      const mz = adductMz(parsed.mono, a)
+                      const sel = a.name === precursor.name
+                      return (
+                        <tr key={a.name} onClick={() => setPrecursorName(a.name)} aria-selected={sel}
+                          className={cn('cursor-pointer hover:bg-accent/40', sel && 'bg-primary/5')}>
+                          <td className={cn('num py-2', sel ? 'font-semibold text-primary' : 'text-foreground')}>{sel ? '● ' : ''}{a.name}</td>
+                          <td className="num py-2 text-muted-foreground">{a.charge}{a.mode}</td>
+                          <td className={cn('num py-2 text-right', sel ? 'font-semibold text-primary' : 'text-foreground')}>{mz.toFixed(4)}</td>
+                          <td className="py-2 pl-2 text-right" onClick={e => e.stopPropagation()}><CopyBtn val={mz.toFixed(4)} k={a.name} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                <button type="button" onClick={() => setShowAll(s => !s)} className="mt-3 text-xs font-medium text-primary hover:underline">
+                  {showAll ? 'Show common only' : `Show all adducts (${ADDUCTS.filter(a => a.mode === mode).length})`}
+                </button>
+              </>
+            ) : (
+              <div className="flex h-40 flex-col items-center justify-center text-muted-foreground/60">
+                <Calculator size={30} className="mb-2" />
+                <p className="text-sm">Enter a valid formula or SMILES to see adducts</p>
+              </div>
+            )}
           </div>
 
-          {parsed.valid ? (
-            <>
-              <table className="w-full text-xs mb-3">
+          {/* ── Product ions ── */}
+          {precursorMz !== null && (
+            <div className={panel}>
+              <h2 className="text-sm font-semibold text-foreground">Product ions from <span className="num text-primary">{precursor.name} {precursorMz.toFixed(4)}</span></h2>
+              <p className="mb-3 mt-0.5 text-xs text-muted-foreground">Common neutral losses (the charge stays on the fragment), a loss of your own, or the formula of the fragment ion itself.</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="text-xs text-muted-foreground">Neutral loss formula
+                  <Input value={lossFormula} onChange={e => setLossFormula(e.target.value)} placeholder="e.g. C2H6O" className="num mt-1" />
+                </label>
+                <label className="text-xs text-muted-foreground">Fragment ion formula
+                  <Input value={fragFormula} onChange={e => setFragFormula(e.target.value)} placeholder="e.g. C7H7 (tropylium)" className="num mt-1" />
+                </label>
+              </div>
+              {fragFormula && (
+                <p className="mt-2 text-xs">
+                  {fragMz === null ? <span className="text-destructive">Invalid fragment formula</span> : (
+                    <span className="text-muted-foreground">Fragment {fragFormula}{mode === '+' ? '⁺' : '⁻'} m/z <span className="num font-semibold text-foreground">{fragMz.toFixed(4)}</span>
+                      {' '}· transition <span className="num text-foreground">{precursorMz.toFixed(2)} › {fragMz.toFixed(2)}</span>
+                      {fragMz >= precursorMz && precursor.charge === 1 && <span className="ml-1 text-destructive">heavier than the precursor</span>}
+                    </span>
+                  )}
+                </p>
+              )}
+              <table className="mt-3 w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left py-2 text-slate-400 font-medium">Adduct</th>
-                    <th className="text-left py-2 text-slate-400 font-medium">z</th>
-                    <th className="text-right py-2 text-slate-400 font-medium">m/z</th>
-                    <th></th>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="py-2 text-left font-medium">Loss</th>
+                    <th className="py-2 text-right font-medium">Δ mass</th>
+                    <th className="py-2 text-right font-medium">Product m/z</th>
+                    <th className="py-2 text-right font-medium">Transition</th>
+                    <th className="w-8"></th>
                   </tr>
                 </thead>
-                <tbody>
-                  {displayedAdducts.map(a => {
-                    const mz = (parsed.mass + a.delta) / a.charge
-                    const isMain = a.name === '[M+H]+' || a.name === '[M-H]-'
-                    return (
-                      <tr key={a.name}
-                        className={`border-b border-slate-50 ${isMain ? 'bg-indigo-50' : ''}`}>
-                        <td className={`py-2 font-mono ${isMain ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>
-                          {a.name}
-                        </td>
-                        <td className="py-2 text-slate-400">{a.charge}{a.mode}</td>
-                        <td className={`py-2 font-mono text-right ${isMain ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>
-                          {mz.toFixed(6)}
-                        </td>
-                        <td className="py-2 pl-2">
-                          <button onClick={() => copyVal(mz.toFixed(4), a.name)}
-                            className="text-slate-300 hover:text-indigo-500 transition-colors">
-                            {copied === a.name
-                              ? <CheckCircle size={12} className="text-green-500" />
-                              : <Copy size={12} />}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                <tbody className="divide-y divide-border/60">
+                  {products.map(p => (
+                    <tr key={p.label}>
+                      <td className="py-1.5 text-xs text-foreground">{p.label}</td>
+                      <td className="num py-1.5 text-right text-xs text-muted-foreground">{p.loss.toFixed(4)}</td>
+                      <td className="num py-1.5 text-right text-foreground">{p.mz.toFixed(4)}</td>
+                      <td className="num py-1.5 text-right text-xs text-muted-foreground">{precursorMz.toFixed(1)} › {p.mz.toFixed(1)}</td>
+                      <td className="py-1.5 pl-2 text-right"><CopyBtn val={p.mz.toFixed(4)} k={p.label} /></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-
-              <button onClick={() => setShowAll(s => !s)}
-                className="text-xs text-indigo-500 hover:text-indigo-700 transition-colors">
-                {showAll ? '▲ Show common only' : `▼ Show all adducts (${ADDUCTS.filter(a => a.mode === mode).length})`}
-              </button>
-
-              {/* MRM helper */}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">MRM Q1 helper</p>
-                <p className="text-xs text-slate-400 mb-2">
-                  Select precursor for MRM method setup
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {displayedAdducts.slice(0, 4).map(a => {
-                    const mz = (parsed.mass + a.delta) / a.charge
-                    return (
-                      <button key={a.name}
-                        onClick={() => copyVal(mz.toFixed(4), `mrm-${a.name}`)}
-                        className="text-left p-2 rounded-lg border border-slate-200
-                          hover:border-indigo-300 hover:bg-indigo-50 transition-all">
-                        <p className="text-xs text-slate-500">{a.name}</p>
-                        <p className="text-sm font-mono font-semibold text-slate-900">
-                          {mz.toFixed(4)}
-                        </p>
-                        {copied === `mrm-${a.name}` && (
-                          <p className="text-xs text-green-500">Copied!</p>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-300">
-              <Calculator size={32} className="mb-2" />
-              <p className="text-sm">Enter a valid formula to see adducts</p>
+              <p className="mt-2 text-xs text-muted-foreground">Predicted from mass arithmetic only: confirm which fragments form with a product-ion scan.</p>
             </div>
           )}
         </div>

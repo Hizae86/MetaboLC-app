@@ -3,11 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MetaboLC — LC-MS/MS Method Reference Library</title>
+    <title>Koiné — LC-MS/MS Method Reference Library</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#060d1a" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: https://pubchem.ncbi.nlm.nih.gov;">
+  <script>
+    // Apply the saved theme before first paint (dark is the default).
+    try { if (localStorage.getItem('metabolc_theme') !== 'light') document.documentElement.classList.add('dark') }
+    catch (e) { document.documentElement.classList.add('dark') }
+  </script>
 </head>
   <body>
     <div id="root"></div>

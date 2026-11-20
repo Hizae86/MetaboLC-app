@@ -92,8 +92,8 @@ export default function CommandPalette() {
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '6px',
         padding: '5px 12px', borderRadius: '8px',
-        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-        color: '#64748b', fontSize: '12px', cursor: 'pointer'
+        background: 'var(--muted)', border: '1px solid var(--border)',
+        color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer'
       }}>
       <Search size={12} />
       <span>Search</span>

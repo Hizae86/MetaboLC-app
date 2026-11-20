@@ -7,10 +7,7 @@
 
 @layer base {
   body {
-    background-color: #f9fafb;
-    color: #111827;
-    font-family: 'Inter', system-ui, sans-serif;
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
   * {
     @apply border-border outline-ring/50;
@@ -78,7 +75,15 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-quant: var(--quant);
+  --color-qual: var(--qual);
+  --color-istd: var(--istd);
+  --color-phase-a: var(--phase-a);
+  --color-phase-b: var(--phase-b);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -119,71 +124,124 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Design tokens ───────────────────────────────────────────────────────────
+   Every colour in the app should come from here. Dark is the default theme
+   (it matches the original navy "cockpit"); light is tuned for bright labs.
+   Semantic extras: quant / qual / istd for MRM roles, phase-a / phase-b for
+   mobile phases, success / warning for status. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #f6f7f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0b67a3;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f5;
+  --secondary-foreground: #1e293b;
+  --muted: #eff2f6;
+  --muted-foreground: #556379;
+  --accent: #e6f0f8;
+  --accent-foreground: #0b4f7d;
+  --destructive: #c62828;
+  --border: #dde2ea;
+  --input: #cfd6e0;
+  --ring: #0b67a3;
+  --success: #15803d;
+  --warning: #a16207;
+  --quant: #15803d;
+  --qual: #556379;
+  --istd: #7c3aed;
+  --phase-a: #0b67a3;
+  --phase-b: #b45309;
+  --chart-1: #0b67a3;
+  --chart-2: #b45309;
+  --chart-3: #7c3aed;
+  --chart-4: #15803d;
+  --chart-5: #be123c;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0b67a3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f0f8;
+  --sidebar-accent-foreground: #0b4f7d;
+  --sidebar-border: #dde2ea;
+  --sidebar-ring: #0b67a3;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #060d1a;
+  --foreground: #e6edf7;
+  --card: #0b1526;
+  --card-foreground: #e6edf7;
+  --popover: #0e1b2e;
+  --popover-foreground: #e6edf7;
+  --primary: #38bdf8;
+  --primary-foreground: #03131f;
+  --secondary: #13203a;
+  --secondary-foreground: #e6edf7;
+  --muted: #101c30;
+  --muted-foreground: #8b9bb5;
+  --accent: #12263f;
+  --accent-foreground: #bae6fd;
+  --destructive: #f87171;
+  --border: rgb(255 255 255 / 0.09);
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #38bdf8;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --quant: #4ade80;
+  --qual: #8b9bb5;
+  --istd: #c084fc;
+  --phase-a: #7dd3fc;
+  --phase-b: #fbbf24;
+  --chart-1: #38bdf8;
+  --chart-2: #fbbf24;
+  --chart-3: #c084fc;
+  --chart-4: #4ade80;
+  --chart-5: #fb7185;
+  --sidebar: #0b1526;
+  --sidebar-foreground: #e6edf7;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #03131f;
+  --sidebar-accent: #12263f;
+  --sidebar-accent-foreground: #bae6fd;
+  --sidebar-border: rgb(255 255 255 / 0.09);
+  --sidebar-ring: #38bdf8;
+}
+
+@layer utilities {
+  /* Numeric data: m/z, retention times, voltages, gradients. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "zero" 1;
+  }
+  .label-caps {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+}
+
+@media print {
+  nav, .no-print { display: none !important; }
+  body { background: #fff !important; }
+}
+
+/* Validation demo: progress bar under the active walkthrough step. */
+@keyframes demo-progress { from { width: 0 } to { width: 100% } }
+
+/* Sample validation dossier: one A4 sheet per .dossier-page, white, no site chrome. */
+@media print {
+  @page { size: A4; margin: 0; }
+  html:has(.dossier-doc), body:has(.dossier-doc), body:has(.dossier-doc) #root, body:has(.dossier-doc) #root > div { background: #fff !important; }
+  main:has(.dossier-doc) { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+  .dossier-doc { padding: 0 !important; }
+  .dossier-page { width: 210mm !important; height: 297mm !important; min-height: 0 !important; margin: 0 !important; overflow: hidden; break-after: page; }
+  .dossier-page:last-child { break-after: auto; }
 }

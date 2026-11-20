@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import FacetFilters from '../components/FacetFilters'
-import MethodComparator from '../components/MethodComparator'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
+const API = (import.meta.env.VITE_API_URL || '') + '/api'
 
 const toTitleCase = (s: string) =>
   s.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
@@ -43,8 +42,8 @@ export default function MethodsStats() {
   const [filterApp, setFilterApp] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState('transitions')
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const navigate = useNavigate()
   const [compareIds, setCompareIds] = useState<number[]>([])
-  const [showComparator, setShowComparator] = useState(false)
 
   const toggleCompare = (id: number) => {
     setCompareIds(prev =>
@@ -52,7 +51,6 @@ export default function MethodsStats() {
       : prev.length < 4 ? [...prev, id] : prev
     )
   }
-  const compareMethods = methods.filter(m => compareIds.includes(m.id))
 
   useEffect(() => {
     axios.get(`${API}/methods/all`)
@@ -350,14 +348,14 @@ export default function MethodsStats() {
         )}
       </div>
       {/* Floating compare bar */}
-      {compareIds.length >= 2 && !showComparator && (
+      {compareIds.length >= 2 && (
         <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2
           bg-slate-900 text-white rounded-xl px-5 py-3
           flex items-center gap-4 shadow-lg">
           <span className="text-sm font-medium">
             {compareIds.length} method{compareIds.length > 1 ? 's' : ''} selected
           </span>
-          <button onClick={() => setShowComparator(true)}
+          <button onClick={() => navigate(`/compare?ids=${compareIds.join(',')}`)}
             className="px-4 py-1.5 bg-white text-slate-900 rounded-lg
               text-xs font-semibold hover:bg-slate-100 transition-all">
             Compare →
@@ -367,12 +365,6 @@ export default function MethodsStats() {
         </div>
       )}
 
-      {showComparator && (
-        <MethodComparator
-          methods={compareMethods}
-          onClose={() => { setShowComparator(false); setCompareIds([]) }}
-        />
-      )}
     </div>
       </div>
       </div>

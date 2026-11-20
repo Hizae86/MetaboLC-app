@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+import { X } from 'lucide-react'
 import axios from 'axios'
+
+/** The Koiné mark; it turns slowly while the assistant is answering. */
+const KoineMark = ({ size, busy = false }: { size: number; busy?: boolean }) => (
+  <img src="/koine-mark.svg" width={size} height={size} alt="" aria-hidden="true"
+    style={{ display: 'block', width: size, height: size, animation: busy ? 'koine-spin 1.6s linear infinite' : undefined }} />
+)
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
@@ -16,6 +24,7 @@ const QUICK = [
 ]
 
 export default function DraMassaFAB() {
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -31,13 +40,11 @@ export default function DraMassaFAB() {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
 
-  // Keyboard shortcut Cmd+K / Ctrl+K
+  // Escape closes the panel. No ⌘K binding here: CommandPalette owns that
+  // shortcut globally, and both components previously registered the same
+  // listener, so whichever mounted last silently won.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setOpen(prev => !prev)
-      }
       if (e.key === 'Escape') setOpen(false)
     }
     window.addEventListener('keydown', handler)
@@ -74,8 +81,11 @@ export default function DraMassaFAB() {
     return <p key={i} style={{margin:'0 0 3px',fontSize:'12px',lineHeight:'1.5'}}>{line}</p>
   })
 
+  // The assistant page already is the assistant: no second way in.
+  if (pathname === '/advisor') return null
+
   return (
-    <>
+    <div className="no-print">
       {/* Backdrop */}
       {open && (
         <div onClick={() => setOpen(false)}
@@ -95,22 +105,12 @@ export default function DraMassaFAB() {
           <div style={{background:'#1e3a5f',padding:'12px 16px',
             display:'flex',alignItems:'center',gap:'10px'}}>
             <div style={{position:'relative',flexShrink:0}}>
-              <img src="/dra-massa.png" alt="Dra. Massa"
-                style={{width:'36px',height:'36px',borderRadius:'50%',
-                  objectFit:'cover',border:'1.5px solid #5DCAA5',display:'block'}}
-                onError={(e) => {
-                  const t = e.target as HTMLImageElement
-                  t.style.display='none'
-                  if (t.nextElementSibling) (t.nextElementSibling as HTMLElement).style.display='flex'
-                }} />
-              <div style={{display:'none',width:'36px',height:'36px',borderRadius:'50%',
-                background:'#2d5a8e',alignItems:'center',justifyContent:'center',
-                fontSize:'14px',color:'white',border:'1.5px solid #5DCAA5'}}>M</div>
+              <KoineMark size={36} busy={loading} />
               <div style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',
                 borderRadius:'50%',background:'#1D9E75',border:'2px solid #1e3a5f'}} />
             </div>
             <div style={{flex:1}}>
-              <p style={{fontSize:'13px',fontWeight:'500',color:'white',margin:'0 0 1px'}}>Dra. Massa</p>
+              <p style={{fontSize:'13px',fontWeight:'500',color:'white',margin:'0 0 1px'}}>Assistant</p>
               <p style={{fontSize:'10px',color:'#94a3b8',margin:0}}>LC-MS/MS Method Advisor</p>
             </div>
             <button onClick={() => setOpen(false)}
@@ -145,10 +145,9 @@ export default function DraMassaFAB() {
               <div key={i} style={{display:'flex',
                 justifyContent:msg.role==='user'?'flex-end':'flex-start',gap:'6px'}}>
                 {msg.role === 'assistant' && (
-                  <img src="/dra-massa.png" alt=""
-                    style={{width:'24px',height:'24px',borderRadius:'50%',
-                      objectFit:'cover',border:'1px solid #1e3a5f',flexShrink:0,
-                      alignSelf:'flex-start',marginTop:'2px'}} />
+                  <div style={{flexShrink:0,alignSelf:'flex-start',marginTop:'2px',display:'flex'}}>
+                    <KoineMark size={24} />
+                  </div>
                 )}
                 <div style={{
                   maxWidth:'80%',padding:'8px 10px',borderRadius:'10px',
@@ -171,9 +170,9 @@ export default function DraMassaFAB() {
 
             {loading && (
               <div style={{display:'flex',gap:'6px',alignItems:'flex-start'}}>
-                <img src="/dra-massa.png" alt=""
-                  style={{width:'24px',height:'24px',borderRadius:'50%',
-                    objectFit:'cover',border:'1px solid #1e3a5f',flexShrink:0}} />
+                <div style={{flexShrink:0,display:'flex'}}>
+                  <KoineMark size={24} busy />
+                </div>
                 <div style={{padding:'8px 10px',borderRadius:'10px',background:'white',
                   border:'0.5px solid #e5e7eb',display:'flex',gap:'3px',alignItems:'center'}}>
                   {[0,1,2].map(j => (
@@ -213,37 +212,26 @@ export default function DraMassaFAB() {
       {/* FAB button */}
       <button onClick={() => setOpen(prev => !prev)}
         style={{position:'fixed',bottom:'24px',right:'24px',zIndex:50,
-          width:'108px',height:'108px',borderRadius:'50%',border:'none',
-          cursor:'pointer',padding:0,overflow:'hidden',
-          boxShadow:'0 4px 16px rgba(0,0,0,0.15)',
+          width:'56px',height:'56px',borderRadius:'50%',border:'none',
+          cursor:'pointer',padding:0,overflow:'hidden',background:'#060d1a',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          outline:'1px solid rgba(56,189,248,0.4)',
+          boxShadow:'0 4px 16px rgba(0,0,0,0.25), 0 0 18px rgba(56,189,248,0.25)',
           transition:'transform 0.15s'}}
         onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.08)')}
         onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}
-        title="Ask Dra. Massa (⌘K)">
-        {open ? (
-          <div style={{width:'100%',height:'100%',background:'#1e3a5f',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            color:'white',fontSize:'20px'}}>×</div>
-        ) : (
-          <img src="/dra-massa.png" alt="Dra. Massa"
-            style={{width:'100%',height:'100%',objectFit:'cover'}}
-            onError={(e) => {
-              const t = e.target as HTMLImageElement
-              t.style.display='none'
-              if (t.parentElement) {
-                t.parentElement.style.background='#1e3a5f'
-                t.parentElement.innerHTML='<span style="color:white;font-size:20px">💬</span>'
-              }
-            }} />
-        )}
+        title="Ask the assistant" aria-label={open ? 'Close the assistant' : 'Ask the assistant'}>
+        {open ? <X size={22} color="white" /> : <KoineMark size={34} busy={loading} />}
       </button>
 
       <style>{`
+        @keyframes koine-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { img[src='/koine-mark.svg'] { animation: none !important; } }
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); }
           30% { transform: translateY(-5px); }
         }
       `}</style>
-    </>
+    </div>
   )
 }

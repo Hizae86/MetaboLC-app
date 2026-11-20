@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
+const API = (import.meta.env.VITE_API_URL || '') + '/api'
 
 const PROBLEMS = [
   'Peak tailing', 'Peak fronting', 'Low signal / sensitivity',
@@ -30,7 +30,7 @@ export default function TroubleshootingAdvisor() {
     setLoading(true)
     setResult(null)
     try {
-      const prompt = `You are Dra. Massa, an expert LC-MS/MS troubleshooting specialist.
+      const prompt = `You are an expert LC-MS/MS troubleshooting specialist.
 A laboratory scientist is experiencing this problem:
 
 Problem: ${problem}

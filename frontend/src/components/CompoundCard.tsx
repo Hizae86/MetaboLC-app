@@ -118,7 +118,7 @@ export default function CompoundCard({ compound }: Props) {
                   </span>
                 ) : null
               })()}
-              
+              <a
                 href={`https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`}
                 target="_blank"
                 rel="noreferrer"

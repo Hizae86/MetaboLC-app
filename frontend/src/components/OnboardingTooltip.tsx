@@ -9,7 +9,7 @@ interface Props {
 const STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to MetaboLC 👋',
+    title: 'Welcome to Koiné 👋',
     desc: 'The largest open repository of clinical LC-MS/MS methods. Let us show you around in 30 seconds.',
     icon: '⚗️',
     targetId: null,

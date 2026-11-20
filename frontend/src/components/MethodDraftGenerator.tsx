@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
+const API = (import.meta.env.VITE_API_URL || '') + '/api'
 
 const MATRICES = ['Plasma', 'Serum', 'Urine', 'Whole blood', 'Dried blood spot', 'CSF', 'Saliva']
 const APPLICATIONS = [
@@ -41,7 +41,7 @@ export default function MethodDraftGenerator() {
     setResult(null)
     setError(null)
     try {
-      const prompt = `You are Dra. Massa, an expert LC-MS/MS clinical laboratory scientist.
+      const prompt = `You are an expert LC-MS/MS clinical laboratory scientist.
 A user wants to develop a new LC-MS/MS method with these parameters:
 - Matrix: ${matrix}
 - Target analytes: ${analytes}
@@ -49,7 +49,7 @@ A user wants to develop a new LC-MS/MS method with these parameters:
 - Preferred vendor: ${vendor || 'any'}
 - Ionization mode: ${ionization || 'not specified'}
 
-Based on the MetaboLC repository knowledge and analytical chemistry best practices, suggest a complete method draft. Format your response as:
+Based on the Koiné repository knowledge and analytical chemistry best practices, suggest a complete method draft. Format your response as:
 
 **Column:** [recommendation]
 **Mobile phase A:** [recommendation]

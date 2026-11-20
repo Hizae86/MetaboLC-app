@@ -1,437 +1,370 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import SEO from '../components/SEO'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { ArrowLeft, ArrowRight, Check, CircleCheck, ClipboardPaste, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import SEO from '../components/SEO'
+import TransitionsEditor from '@/components/submit/TransitionsEditor'
+import { Choice, Field, Section, Select, Text, inputCls } from '@/components/submit/fields'
+import { Button } from '@/components/ui/button'
+import { API } from '@/lib/api'
+import { parseGradient, type DraftStep, type DraftTransition } from '@/lib/transitionImport'
+import { INSTRUMENTS, MANUFACTURERS } from '@/lib/vendors'
+import { cn } from '@/lib/utils'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
-
-const MANUFACTURERS = ['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker', 'PerkinElmer', 'Other']
-const INSTRUMENTS: Record<string, string[]> = {
-  'Sciex': ['Triple Quad 3500', 'Triple Quad 4500MD', 'Triple Quad 5500+', 'Triple Quad 6500+', 'Triple Quad 7500', 'QTRAP 4500', 'QTRAP 5500', 'QTRAP 6500+', 'ZenoTOF 7600'],
-  'Waters': ['Xevo TQ-S', 'Xevo TQ-S micro', 'Xevo TQ-Absolute', 'Xevo TQ-XS', 'Quattro Premier XE'],
-  'Thermo Fisher': ['TSQ Quantis', 'TSQ Quantis Plus', 'TSQ Altis', 'TSQ Altis Plus', 'TSQ Fortis', 'TSQ Endura'],
-  'Agilent': ['6470', '6475', '6490', '6495C', '6495D', 'Ultivo LC/TQ', 'InfinityLab LC/TQ'],
-  'Shimadzu': ['LCMS-8040', 'LCMS-8050', 'LCMS-8060', 'LCMS-8060NX', 'LCMS-8090'],
-  'PerkinElmer': ['QSight 210', 'QSight 225'],
-  'Bruker': ['EVOQ Triple Quad', 'EVOQ Cube', 'EVOQ Elite'],
-  'Other': ['Other'],
-}
-
+const STEPS = ['Method', 'Chromatography', 'Mass spectrometry', 'Sample prep', 'Source & credit'] as const
 const APPLICATIONS = ['Therapeutic Drug Monitoring', 'Endocrinology', 'Toxicology', 'Newborn screening', 'Oncology', 'Metabolomics', 'Other']
 const VALIDATION_LEVELS = [
-  {code: 'ISO 15189', desc: 'Accredited clinical lab'},
-  {code: 'CE-IVD', desc: 'EU regulatory'},
-  {code: 'RUO', desc: 'Research use only'},
-  {code: 'In development', desc: 'Draft / WIP'},
+  { value: 'ISO 15189', hint: 'accredited clinical lab' }, { value: 'CE-IVD', hint: 'EU regulatory' },
+  { value: 'RUO', hint: 'research use only' }, { value: 'In development', hint: 'draft' },
+]
+const SOURCE_TYPES = [
+  { value: 'Laboratory method', hint: 'developed in your lab' }, { value: 'Journal article' },
+  { value: 'Application note' }, { value: 'Conference poster' },
 ]
 const MATRICES = ['plasma', 'serum', 'urine', 'whole blood', 'dried blood spot', 'CSF', 'saliva', 'tissue', 'other']
 const IONIZATION = ['ESI+', 'ESI-', 'ESI+/ESI- (polarity switching 50ms)', 'APCI+', 'APCI-']
 const PREP_METHODS = ['Protein Precipitation (PPT)', 'Liquid-Liquid Extraction (LLE)', 'Solid Phase Extraction (SPE)', 'Dilute and Shoot', 'Enzymatic Hydrolysis', 'Derivatization', 'Other']
+const UNITS = ['ng/mL', 'pg/mL', 'µg/mL', 'nmol/L', 'pmol/L', 'µmol/L', 'ng/dL', 'µg/dL']
 
-interface FormData {
-  title: string
-  analyte: string
-  analyte_normalized: string
-  matrix: string
-  clinical_application: string
-  ionization_mode: string
-  validation_level: string
-  instrument_manufacturer: string
-  instrument_model: string
-  column_brand: string
-  column_name: string
-  column_stationary_phase: string
-  column_length_mm: string
-  column_diameter_mm: string
-  column_particle_size_um: string
-  column_temperature_c: string
-  mobile_phase_a: string
-  mobile_phase_b: string
-  injection_volume_ul: string
-  sample_prep_method: string
-  sample_prep_details: string
-  lloq: string
-  lloq_unit: string
-  uloq: string
-  laboratory: string
-  country: string
-  reference: string
-  notes: string
-  submitted_by: string
-  submitted_by_email: string
+const EMPTY = {
+  title: '', analyte: '', analyte_normalized: '', matrix: 'plasma', ionization_mode: 'ESI+', validation_level: 'RUO',
+  instrument_manufacturer: 'Sciex', instrument_model: '',
+  column_brand: '', column_name: '', column_stationary_phase: '', column_length_mm: '', column_diameter_mm: '',
+  column_particle_size_um: '', column_temperature_c: '', mobile_phase_a: '', mobile_phase_b: '', injection_volume_ul: '',
+  sample_prep_method: '', sample_prep_details: '', lloq: '', lloq_unit: 'ng/mL', uloq: '',
+  source_type: 'Laboratory method', source_authors: '', reference: '', source_url: '', notes: '',
+  submitted_by: '', submitted_by_email: '', laboratory: '', country: '',
 }
+type Form = typeof EMPTY
+type Key = keyof Form
+const NUMERIC: Key[] = ['column_length_mm', 'column_diameter_mm', 'column_particle_size_um', 'column_temperature_c', 'injection_volume_ul', 'lloq', 'uloq']
+const REQUIRED: Record<number, Key[]> = { 0: ['title', 'analyte', 'matrix'], 2: ['instrument_manufacturer', 'instrument_model'], 4: ['submitted_by', 'laboratory'] }
 
-const empty: FormData = {
-  title:'', analyte:'', analyte_normalized:'', matrix:'plasma',
-  clinical_application:'', ionization_mode:'ESI+', validation_level:'RUO',
-  instrument_manufacturer:'Sciex', instrument_model:'',
-  column_brand:'', column_name:'', column_stationary_phase:'',
-  column_length_mm:'', column_diameter_mm:'', column_particle_size_um:'',
-  column_temperature_c:'', mobile_phase_a:'', mobile_phase_b:'',
-  injection_volume_ul:'', sample_prep_method:'', sample_prep_details:'',
-  lloq:'', lloq_unit:'ng/mL', uloq:'', laboratory:'', country:'', reference:'', notes:'',
-  submitted_by:'', submitted_by_email:'',
+const DRAFT_KEY = 'metabolc_submit_draft_v1'
+interface Draft { form: Form; apps: string[]; gradient: DraftStep[]; transitions: DraftTransition[]; step: number }
+const readDraft = (): Draft | null => {
+  try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : null } catch { return null }
 }
+const toNumber = (v: unknown) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null }
 
-const IS = {
-  width:'100%', padding:'7px 10px',
-  border:'0.5px solid rgba(255,255,255,0.15)', borderRadius:'6px',
-  fontSize:'12px', background:'rgba(255,255,255,0.05)', color:'#e2e8f0',
-  fontFamily:'inherit',
-} as React.CSSProperties
-
-const LS = {
-  display:'block', fontSize:'11px', fontWeight:'500' as const,
-  color:'#94a3b8', marginBottom:'4px',
+function GradientEditor({ steps, onChange }: { steps: DraftStep[]; onChange: (s: DraftStep[]) => void }) {
+  const [pasting, setPasting] = useState(false)
+  const [text, setText] = useState('')
+  const set = (i: number, patch: Partial<DraftStep>) => onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)))
+  const num = 'num h-8 w-full rounded-lg border border-input bg-transparent px-2 text-right text-sm outline-none focus-visible:border-ring'
+  return (
+    <div className="space-y-2">
+      {steps.length > 0 && (
+        <table className="w-full max-w-xl text-sm">
+          <thead>
+            <tr className="text-xs text-muted-foreground">
+              {['Time (min)', '%B', 'Flow (mL/min)', 'Curve'].map(h => <th key={h} className="pb-1 pr-2 text-left font-medium">{h}</th>)}
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {steps.map((s, i) => (
+              <tr key={i}>
+                {(['time_min', 'percent_b', 'flow_rate_ml_min'] as const).map(f => (
+                  <td key={f} className="py-0.5 pr-2">
+                    <input inputMode="decimal" value={s[f]} onChange={e => set(i, { [f]: e.target.value.replace(',', '.') })} aria-label={`${f}, step ${i + 1}`} className={num} />
+                  </td>
+                ))}
+                <td className="py-0.5 pr-2">
+                  <select value={s.curve} onChange={e => set(i, { curve: e.target.value })} aria-label={`Curve, step ${i + 1}`} className={cn(num, 'text-left font-sans')}>
+                    <option className="bg-popover">linear</option><option className="bg-popover">step</option>
+                  </select>
+                </td>
+                <td>
+                  <button type="button" onClick={() => onChange(steps.filter((_, idx) => idx !== i))} aria-label={`Remove step ${i + 1}`}
+                    className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 size={14} /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {pasting && (
+        <div className="max-w-xl rounded-lg border border-border bg-muted/40 p-3">
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={5} autoFocus spellCheck={false} aria-label="Gradient table to import"
+            placeholder={'0.0   5   0.4\n0.5   5   0.4\n3.0   95  0.4\n4.0   95  0.4\n4.1   5   0.4'} className={cn(inputCls, 'num h-auto py-2 text-xs leading-relaxed')} />
+          <div className="mt-2 flex items-center gap-2">
+            <Button type="button" disabled={!text.trim()} onClick={() => { onChange([...steps, ...parseGradient(text)]); setText(''); setPasting(false) }}>Import steps</Button>
+            <Button type="button" variant="ghost" onClick={() => setPasting(false)}>Cancel</Button>
+            <span className="text-xs text-muted-foreground">One step per line: time, %B, flow.</span>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={() => onChange([...steps, { time_min: '', percent_b: '', flow_rate_ml_min: steps[steps.length - 1]?.flow_rate_ml_min ?? '', curve: 'linear' }])}><Plus /> Add step</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setPasting(p => !p)}><ClipboardPaste /> Paste gradient table</Button>
+      </div>
+    </div>
+  )
 }
 
 export default function SubmitMethod() {
-  const [step, setStep] = useState(1)
-  const [form, setForm] = useState<FormData>(empty)
-  const [selectedApps, setSelectedApps] = useState<string[]>([])
+  const draft = useRef(readDraft()).current
+  const [form, setForm] = useState<Form>(draft?.form ? { ...EMPTY, ...draft.form } : EMPTY)
+  const [apps, setApps] = useState<string[]>(draft?.apps ?? [])
+  const [gradient, setGradient] = useState<DraftStep[]>(draft?.gradient ?? [])
+  const [transitions, setTransitions] = useState<DraftTransition[]>(draft?.transitions ?? [])
+  const [step, setStep] = useState(draft?.step ?? 0)
+  const [restored, setRestored] = useState(!!draft)
+  const [showErrors, setShowErrors] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [createdId, setCreatedId] = useState<number | null>(null)
 
-  const u = (field: keyof FormData) => (e: any) =>
-    setForm(prev => ({...prev, [field]: e.target.value}))
+  // Autosave: a method takes a while to fill in, and people get interrupted in the lab.
+  useEffect(() => {
+    if (createdId !== null) return
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, apps, gradient, transitions, step })) } catch { /* storage unavailable: no draft */ }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [form, apps, gradient, transitions, step, createdId])
 
-  const toggleApp = (app: string) =>
-    setSelectedApps(prev => prev.includes(app) ? prev.filter(a => a!==app) : [...prev, app])
+  const set = (key: Key) => (value: string) => setForm(prev => ({ ...prev, [key]: value }))
+  const missing = (s: number) => (REQUIRED[s] || []).filter(k => !form[k].trim())
+  const invalid = (key: Key) => showErrors && (REQUIRED[step] || []).includes(key) && !form[key].trim()
 
-  const handleSubmit = async () => {
-    setSubmitting(true)
-    try {
-      const payload = {
-        ...form,
-        clinical_application: selectedApps.join(', '),
-        column_length_mm: form.column_length_mm ? parseFloat(form.column_length_mm) : null,
-        column_diameter_mm: form.column_diameter_mm ? parseFloat(form.column_diameter_mm) : null,
-        column_particle_size_um: form.column_particle_size_um ? parseFloat(form.column_particle_size_um) : null,
-        column_temperature_c: form.column_temperature_c ? parseFloat(form.column_temperature_c) : null,
-        injection_volume_ul: form.injection_volume_ul ? parseFloat(form.injection_volume_ul) : null,
-        lloq: form.lloq ? parseFloat(form.lloq) : null,
-        lloq_unit: form.lloq_unit || 'ng/mL',
-        uloq: form.uloq ? parseFloat(form.uloq) : null,
-        status: 'pending',
-        gradient_steps: [],
-        mrm_transitions: [],
-      }
-      await axios.post(`${API}/methods/`, payload)
-      setSubmitted(true)
-    } catch(err) {
-      alert('Error submitting. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
+  const reset = () => {
+    try { localStorage.removeItem(DRAFT_KEY) } catch { /* nothing to clear */ }
+    setForm(EMPTY); setApps([]); setGradient([]); setTransitions([]); setStep(0); setRestored(false); setShowErrors(false); setError(null)
+  }
+  const go = (target: number) => {
+    if (target > step && missing(step).length) { setShowErrors(true); return }
+    setShowErrors(false); setStep(target); window.scrollTo({ top: 0 })
   }
 
-  const Panel = ({children, title, icon}: any) => (
-    <div style={{background:'#0e1b2e',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'12px',
-      padding:'1.25rem',marginBottom:'10px'}}>
-      <div style={{fontSize:'11px',fontWeight:'500',textTransform:'uppercase',
-        letterSpacing:'0.06em',color:'#64748b',marginBottom:'14px',
-        display:'flex',alignItems:'center',gap:'6px'}}>
-        <i className={`ti ${icon}`} aria-hidden="true" />
-        {title}
-      </div>
-      {children}
-    </div>
-  )
+  const validTransitions = transitions.filter(t => t.compound_name.trim() && toNumber(t.precursor_mz) !== null && toNumber(t.product_mz) !== null)
+  const validSteps = gradient.filter(s => toNumber(s.time_min) !== null && toNumber(s.percent_b) !== null)
 
-  const progress = (step / 4) * 100
+  const submit = async () => {
+    const firstIncomplete = [0, 2, 4].find(s => missing(s).length)
+    if (firstIncomplete !== undefined) { setStep(firstIncomplete); setShowErrors(true); return }
+    setSubmitting(true); setError(null)
+    const payload: Record<string, unknown> = { ...form, clinical_application: apps.join(', ') }
+    NUMERIC.forEach(k => { payload[k] = toNumber(form[k]) })
+    Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = null })
+    payload.gradient_steps = validSteps.map(s => ({
+      time_min: toNumber(s.time_min), percent_b: toNumber(s.percent_b), flow_rate_ml_min: toNumber(s.flow_rate_ml_min), curve: s.curve || 'linear',
+    }))
+    payload.mrm_transitions = validTransitions.map(t => {
+      const out: Record<string, unknown> = {
+        compound_name: t.compound_name.trim(), is_internal_standard: t.is_internal_standard, is_quantifier: t.is_quantifier,
+        precursor_mz: toNumber(t.precursor_mz), product_mz: toNumber(t.product_mz),
+        polarity: t.polarity || 'ESI+', assigned_is: t.assigned_is || null,
+      }
+      Object.entries(t).forEach(([k, v]) => { if (!(k in out)) out[k] = toNumber(v) })
+      return out
+    })
+    try {
+      const res = await axios.post(`${API}/methods/`, payload)
+      try { localStorage.removeItem(DRAFT_KEY) } catch { /* nothing to clear */ }
+      setCreatedId(res.data.id)
+    } catch (err: any) {
+      const status = err?.response?.status
+      setError(status === 429 ? 'Too many submissions from this network in the last hour. Your draft is saved; try again later.'
+        : status === 422 ? 'The server rejected some values. Check the numeric fields and the transition list, then try again.'
+        : 'The method could not be sent. Your draft is saved on this device; check your connection and try again.')
+    } finally { setSubmitting(false) }
+  }
 
-  const StepCircle = ({n}: {n: number}) => (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
-      <div style={{width:'28px',height:'28px',borderRadius:'50%',display:'flex',
-        alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'500',
-        background: n < step ? '#1e3a5f' : n === step ? 'rgba(125,211,252,0.15)' : 'rgba(255,255,255,0.06)',
-        color: n < step ? 'white' : n === step ? '#7dd3fc' : '#64748b',
-        border: n === step ? '1.5px solid rgba(125,211,252,0.4)' : 'none'}}>
-        {n < step ? <i className="ti ti-check" style={{fontSize:'12px'}} aria-hidden="true" /> : n}
+  if (createdId !== null) {
+    return (
+      <div className="mx-auto max-w-lg rounded-xl border border-border bg-card px-6 py-12 text-center">
+        <SEO title="Method submitted" />
+        <CircleCheck size={36} className="mx-auto mb-3 text-success" />
+        <h1 className="text-lg font-semibold text-foreground">Method submitted</h1>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
+          Thank you. A reviewer will read it before it appears in the library{form.submitted_by_email ? ', and may write to you if something needs checking' : ''}.
+          It will be listed under your name, linked to its source.
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">Reference number <span className="num">#{createdId}</span></p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Button asChild><Link to="/methods" className="no-underline">Back to the library</Link></Button>
+          <Button variant="outline" onClick={() => { setCreatedId(null); reset() }}>Submit another</Button>
+        </div>
       </div>
-      <div style={{fontSize:'10px',fontWeight:'500',marginTop:'3px',
-        color: n < step ? '#94a3b8' : n === step ? '#7dd3fc' : '#64748b'}}>
-        {['','General','Parameters','Files','Attribution'][n]}
-      </div>
-    </div>
-  )
+    )
+  }
 
-  if (submitted) return (
-    <div style={{maxWidth:'600px',margin:'0 auto',textAlign:'center',padding:'4rem 1rem'}}>
-      <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'rgba(74,222,128,0.15)',
-        display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',
-        fontSize:'24px',color:'#4ade80'}}>
-        <i className="ti ti-check" aria-hidden="true" />
-      </div>
-      <h1 style={{fontSize:'18px',fontWeight:'500',marginBottom:'8px',color:'#f1f5f9'}}>Method submitted</h1>
-      <p style={{fontSize:'13px',color:'#94a3b8',maxWidth:'340px',margin:'0 auto 24px',lineHeight:'1.6'}}>
-        Thanks for contributing to MetaboLC. The team will review your method and notify you by email once it's published.
-      </p>
-      <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
-        <button onClick={() => navigate('/')}
-          style={{padding:'8px 16px',background:'#1e3a5f',color:'white',border:'none',
-            borderRadius:'8px',fontSize:'12px',fontWeight:'500',cursor:'pointer'}}>
-          Back to repository
-        </button>
-        <button onClick={() => {setSubmitted(false);setStep(1);setForm(empty);setSelectedApps([])}}
-          style={{padding:'8px 14px',background:'rgba(255,255,255,0.05)',color:'#94a3b8',
-            border:'0.5px solid rgba(255,255,255,0.15)',borderRadius:'8px',fontSize:'12px',cursor:'pointer'}}>
-          Submit another
-        </button>
-      </div>
-    </div>
-  )
-
+  const last = step === STEPS.length - 1
   return (
-    <div style={{maxWidth:'700px',margin:'0 auto'}}>
-      <SEO title="Submit a Method"
-        description="Contribute a clinical LC-MS/MS method to the MetaboLC repository and get credit on the method's detail page." />
-      <Link to="/" style={{color:'#60a5fa',fontSize:'12px',textDecoration:'none',
-        display:'inline-flex',alignItems:'center',gap:'4px',marginBottom:'16px'}}>
-        <i className="ti ti-arrow-left" style={{fontSize:'13px'}} aria-hidden="true" /> Back to repository
-      </Link>
+    <div className="mx-auto max-w-4xl space-y-4 pb-16">
+      <SEO title="Submit a Method" description="Contribute a clinical LC-MS/MS method to the Koiné repository and get credit on the method's page." />
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'6px'}}>
-        <span style={{fontSize:'16px',fontWeight:'500',color:'#f1f5f9'}}>Submit a method</span>
-        <span style={{fontSize:'11px',color:'#94a3b8'}}>Step {step} of 4</span>
-      </div>
+      <header>
+        <Link to="/methods" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground"><ArrowLeft size={14} /> Methods</Link>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Submit a method</h1>
+        <p className="text-sm text-muted-foreground">Only the fields marked * are required. Your progress is saved on this device as you go.</p>
+      </header>
 
-      <div style={{height:'3px',background:'rgba(255,255,255,0.08)',borderRadius:'2px',marginBottom:'20px',overflow:'hidden'}}>
-        <div style={{height:'100%',background:'#38bdf8',borderRadius:'2px',
-          width:`${progress}%`,transition:'width 0.3s'}} />
-      </div>
+      {restored && (
+        <div role="status" className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">
+          <span className="flex-1">Picked up your unfinished draft.</span>
+          <button type="button" onClick={reset} className="text-xs font-medium text-destructive hover:underline">Discard and start over</button>
+          <button type="button" onClick={() => setRestored(false)} className="text-xs font-medium text-muted-foreground hover:text-foreground">Dismiss</button>
+        </div>
+      )}
 
-      <div style={{display:'flex',alignItems:'center',marginBottom:'24px'}}>
-        {[1,2,3,4].map(n => (
-          <div key={n} style={{display:'flex',alignItems:'center',flex: n<4 ? 1 : 0}}>
-            <StepCircle n={n} />
-            {n < 4 && (
-              <div style={{flex:1,height:'1px',background: n < step ? '#1e3a5f' : 'rgba(255,255,255,0.12)',
-                margin:'0 4px',marginBottom:'16px'}} />
-            )}
+      <nav aria-label="Steps">
+        <ol className="flex flex-wrap gap-1.5">
+          {STEPS.map((label, i) => (
+            <li key={label}>
+              <button type="button" onClick={() => go(i)} aria-current={i === step ? 'step' : undefined}
+                className={cn('flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  i === step ? 'border-primary/50 bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground')}>
+                <span className={cn('num flex size-4.5 items-center justify-center rounded-full text-[10px]', i < step ? 'bg-success/20 text-success' : 'bg-muted')}>
+                  {i < step ? <Check size={11} /> : i + 1}
+                </span>
+                {label}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      {step === 0 && (
+        <Section title="What the method measures">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Method title" required error={invalid('title')} className="sm:col-span-2">
+              <Text value={form.title} onChange={set('title')} invalid={invalid('title')} placeholder="e.g. Simultaneous quantitation of immunosuppressants in whole blood" />
+            </Field>
+            <Field label="Analytes" required error={invalid('analyte')} hint="Comma-separated. The full list comes from your transitions.">
+              <Text value={form.analyte} onChange={set('analyte')} invalid={invalid('analyte')} placeholder="e.g. Tacrolimus, Sirolimus, Everolimus" />
+            </Field>
+            <Field label="Short name" hint="Used in file names.">
+              <Text value={form.analyte_normalized} onChange={set('analyte_normalized')} placeholder="e.g. immunosuppressants" />
+            </Field>
+            <Field label="Matrix" required><Select value={form.matrix} onChange={set('matrix')} options={MATRICES} /></Field>
+            <Field label="Ionization mode"><Select value={form.ionization_mode} onChange={set('ionization_mode')} options={IONIZATION} /></Field>
+            <div className="sm:col-span-2">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">Clinical application</span>
+              <Choice multiple options={APPLICATIONS.map(value => ({ value }))} value={apps}
+                onChange={v => setApps(prev => (prev.includes(v) ? prev.filter(a => a !== v) : [...prev, v]))} />
+            </div>
+            <div className="sm:col-span-2">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">Validation level</span>
+              <Choice options={VALIDATION_LEVELS} value={form.validation_level} onChange={set('validation_level')} />
+            </div>
           </div>
-        ))}
-      </div>
+        </Section>
+      )}
 
       {step === 1 && (
         <>
-          <Panel title="General information" icon="ti-info-circle">
-            <div style={{marginBottom:'10px'}}>
-              <label style={LS}>Method title <span style={{color:'#f87171'}}>*</span></label>
-              <input style={IS} value={form.title} onChange={u('title')}
-                placeholder="e.g. Simultaneous quantitation of immunosuppressants in whole blood" />
+          <Section title="Column">
+            <div className="grid gap-4 sm:grid-cols-4">
+              <Field label="Brand" className="sm:col-span-2"><Text value={form.column_brand} onChange={set('column_brand')} placeholder="e.g. Waters, Phenomenex" /></Field>
+              <Field label="Name" className="sm:col-span-2"><Text value={form.column_name} onChange={set('column_name')} placeholder="e.g. Acquity UPLC BEH C18" /></Field>
+              <Field label="Stationary phase"><Text value={form.column_stationary_phase} onChange={set('column_stationary_phase')} placeholder="C18, Biphenyl, HILIC" /></Field>
+              <Field label="Length (mm)"><Text mono inputMode="decimal" value={form.column_length_mm} onChange={set('column_length_mm')} placeholder="50" /></Field>
+              <Field label="Internal diameter (mm)"><Text mono inputMode="decimal" value={form.column_diameter_mm} onChange={set('column_diameter_mm')} placeholder="2.1" /></Field>
+              <Field label="Particle size (µm)"><Text mono inputMode="decimal" value={form.column_particle_size_um} onChange={set('column_particle_size_um')} placeholder="1.7" /></Field>
+              <Field label="Column temperature (°C)"><Text mono inputMode="decimal" value={form.column_temperature_c} onChange={set('column_temperature_c')} placeholder="40" /></Field>
+              <Field label="Injection volume (µL)"><Text mono inputMode="decimal" value={form.injection_volume_ul} onChange={set('injection_volume_ul')} placeholder="5" /></Field>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div>
-                <label style={LS}>Analyte / Panel <span style={{color:'#f87171'}}>*</span></label>
-                <input style={IS} value={form.analyte} onChange={u('analyte')}
-                  placeholder="e.g. Tacrolimus, Sirolimus, Everolimus" />
-              </div>
-              <div>
-                <label style={LS}>Short name (normalized)</label>
-                <input style={IS} value={form.analyte_normalized} onChange={u('analyte_normalized')}
-                  placeholder="e.g. immunosuppressants" />
-              </div>
+          </Section>
+          <Section title="Mobile phases and gradient">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Mobile phase A"><Text value={form.mobile_phase_a} onChange={set('mobile_phase_a')} placeholder="e.g. Water + 0.1% formic acid" /></Field>
+              <Field label="Mobile phase B"><Text value={form.mobile_phase_b} onChange={set('mobile_phase_b')} placeholder="e.g. Methanol + 0.1% formic acid" /></Field>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div>
-                <label style={LS}>Matrix <span style={{color:'#f87171'}}>*</span></label>
-                <select style={IS} value={form.matrix} onChange={u('matrix')}>
-                  {MATRICES.map(m => <option key={m} value={m} style={{background:'#0e1b2e'}}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={LS}>Ionization mode</label>
-                <select style={IS} value={form.ionization_mode} onChange={u('ionization_mode')}>
-                  {IONIZATION.map(m => <option key={m} value={m} style={{background:'#0e1b2e'}}>{m}</option>)}
-                </select>
-              </div>
+            <div className="mt-4">
+              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Gradient program</span>
+              <GradientEditor steps={gradient} onChange={setGradient} />
             </div>
-            <div style={{marginBottom:'10px'}}>
-              <label style={LS}>Clinical application</label>
-              <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
-                {APPLICATIONS.map(app => (
-                  <span key={app} onClick={() => toggleApp(app)}
-                    style={{padding:'4px 10px',borderRadius:'20px',fontSize:'11px',fontWeight:'500',
-                      cursor:'pointer',transition:'all 0.15s',userSelect:'none',
-                      background: selectedApps.includes(app) ? '#1e3a5f' : 'rgba(255,255,255,0.05)',
-                      color: selectedApps.includes(app) ? 'white' : '#94a3b8',
-                      border: `0.5px solid ${selectedApps.includes(app) ? '#1e3a5f' : 'rgba(255,255,255,0.15)'}`}}>
-                    {app}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={LS}>Validation level</label>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
-                {VALIDATION_LEVELS.map(v => (
-                  <div key={v.code} onClick={() => setForm(prev => ({...prev, validation_level: v.code}))}
-                    style={{padding:'8px',border:`0.5px solid ${form.validation_level===v.code ? 'rgba(125,211,252,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                      borderRadius:'8px',cursor:'pointer',textAlign:'center',
-                      background: form.validation_level===v.code ? 'rgba(125,211,252,0.12)' : 'rgba(255,255,255,0.03)',
-                      transition:'all 0.15s'}}>
-                    <div style={{fontSize:'11px',fontWeight:'500',color:form.validation_level===v.code ? '#7dd3fc' : '#e2e8f0'}}>{v.code}</div>
-                    <div style={{fontSize:'9px',color:'#64748b',marginTop:'2px'}}>{v.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Panel>
+          </Section>
         </>
       )}
 
       {step === 2 && (
         <>
-          <Panel title="Instrument and source" icon="ti-microscope">
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div>
-                <label style={LS}>Manufacturer <span style={{color:'#f87171'}}>*</span></label>
-                <select style={IS} value={form.instrument_manufacturer}
-                  onChange={e => setForm(prev => ({...prev, instrument_manufacturer: e.target.value, instrument_model:''}))}>
-                  {MANUFACTURERS.map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={LS}>Model <span style={{color:'#f87171'}}>*</span></label>
-                <select style={IS} value={form.instrument_model} onChange={u('instrument_model')}>
-                  <option value="" style={{background:'#0e1b2e'}}>-- Select model --</option>
-                  {(INSTRUMENTS[form.instrument_manufacturer] || []).map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
-                </select>
-              </div>
+          <Section title="Instrument">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Manufacturer" required>
+                <Select value={form.instrument_manufacturer} options={MANUFACTURERS}
+                  onChange={v => setForm(prev => ({ ...prev, instrument_manufacturer: v, instrument_model: '' }))} />
+              </Field>
+              <Field label="Model" required error={invalid('instrument_model')}>
+                <Select value={form.instrument_model} onChange={set('instrument_model')} invalid={invalid('instrument_model')}
+                  options={INSTRUMENTS[form.instrument_manufacturer] || ['Other']} placeholder="Select a model" />
+              </Field>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-              <div><label style={LS}>Column brand</label><input style={IS} value={form.column_brand} onChange={u('column_brand')} placeholder="e.g. Waters, Phenomenex" /></div>
-              <div><label style={LS}>Column name</label><input style={IS} value={form.column_name} onChange={u('column_name')} placeholder="e.g. Acquity UPLC BEH C18" /></div>
-              <div><label style={LS}>Stationary phase</label><input style={IS} value={form.column_stationary_phase} onChange={u('column_stationary_phase')} placeholder="e.g. C18, HILIC" /></div>
-              <div><label style={LS}>Column temp (°C)</label><input type="number" style={IS} value={form.column_temperature_c} onChange={u('column_temperature_c')} placeholder="40" /></div>
-              <div><label style={LS}>Length (mm)</label><input type="number" style={IS} value={form.column_length_mm} onChange={u('column_length_mm')} placeholder="50" /></div>
-              <div><label style={LS}>Diameter (mm)</label><input type="number" style={IS} value={form.column_diameter_mm} onChange={u('column_diameter_mm')} placeholder="2.1" /></div>
-              <div><label style={LS}>Particle size (µm)</label><input type="number" style={IS} value={form.column_particle_size_um} onChange={u('column_particle_size_um')} placeholder="1.7" /></div>
-              <div><label style={LS}>Injection volume (µL)</label><input type="number" style={IS} value={form.injection_volume_ul} onChange={u('injection_volume_ul')} placeholder="10" /></div>
-              <div style={{gridColumn:'1/-1'}}><label style={LS}>Mobile phase A</label><input style={IS} value={form.mobile_phase_a} onChange={u('mobile_phase_a')} placeholder="e.g. Water + 0.1% formic acid" /></div>
-              <div style={{gridColumn:'1/-1'}}><label style={LS}>Mobile phase B</label><input style={IS} value={form.mobile_phase_b} onChange={u('mobile_phase_b')} placeholder="e.g. Methanol + 0.1% formic acid" /></div>
-            </div>
-          </Panel>
-          <Panel title="Sample preparation" icon="ti-flask">
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div>
-                <label style={LS}>Method</label>
-                <select style={IS} value={form.sample_prep_method} onChange={u('sample_prep_method')}>
-                  <option value="" style={{background:'#0e1b2e'}}>-- Select --</option>
-                  {PREP_METHODS.map(m => <option key={m} style={{background:'#0e1b2e'}}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={LS}>LLOQ</label>
-                <div style={{display:'flex',gap:'6px'}}>
-                  <input type="number" style={{...IS,flex:1}} value={form.lloq} onChange={u('lloq')} placeholder="e.g. 1.0" />
-                  <select style={{...IS,width:'90px'}} value={form.lloq_unit} onChange={u('lloq_unit')}>
-                    <option style={{background:'#0e1b2e'}}>ng/mL</option>
-                    <option style={{background:'#0e1b2e'}}>pg/mL</option>
-                    <option style={{background:'#0e1b2e'}}>µg/mL</option>
-                    <option style={{background:'#0e1b2e'}}>nmol/L</option>
-                    <option style={{background:'#0e1b2e'}}>pmol/L</option>
-                    <option style={{background:'#0e1b2e'}}>µmol/L</option>
-                    <option style={{background:'#0e1b2e'}}>ng/dL</option>
-                    <option style={{background:'#0e1b2e'}}>µg/dL</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label style={LS}>Step-by-step details</label>
-              <textarea rows={4} style={{...IS, resize:'vertical' as const}}
-                value={form.sample_prep_details} onChange={u('sample_prep_details')}
-                placeholder="Write each step on a new line. Include volumes, speeds, times and temperatures." />
-            </div>
-          </Panel>
+          </Section>
+          <Section title="MRM transitions" description="Import the list you already have, then check the roles. Source parameters can be added by a reviewer later.">
+            <TransitionsEditor rows={transitions} onChange={setTransitions} manufacturer={form.instrument_manufacturer} ionization={form.ionization_mode} />
+          </Section>
         </>
       )}
 
       {step === 3 && (
-        <Panel title="Files and documentation" icon="ti-files">
-          <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-            {[
-              {label:'Native method file (.meth, .xml, .dam…)', hint:'Analyst .dam · MassLynx .raw · Xcalibur .meth', icon:'ti-file-export'},
-              {label:'Application note / SOP (PDF)', hint:'Max 20 MB', icon:'ti-file-type-pdf'},
-              {label:'Representative chromatogram (optional)', hint:'PNG, JPG or SVG', icon:'ti-photo'},
-            ].map(f => (
-              <div key={f.label}>
-                <label style={LS}>{f.label}</label>
-                <div style={{border:'1.5px dashed rgba(255,255,255,0.15)',borderRadius:'10px',padding:'20px',
-                  textAlign:'center',cursor:'pointer',background:'rgba(255,255,255,0.03)',transition:'all 0.15s'}}
-                  onMouseEnter={e=>(e.currentTarget.style.borderColor='#38bdf8')}
-                  onMouseLeave={e=>(e.currentTarget.style.borderColor='rgba(255,255,255,0.15)')}>
-                  <i className={`ti ${f.icon}`} style={{fontSize:'24px',color:'#64748b',display:'block',marginBottom:'6px'}} aria-hidden="true" />
-                  <div style={{fontSize:'12px',color:'#94a3b8'}}>Drop file here or click to browse</div>
-                  <div style={{fontSize:'10px',color:'#64748b',marginTop:'3px'}}>{f.hint}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{padding:'8px 12px',background:'rgba(255,255,255,0.04)',borderRadius:'8px',
-              fontSize:'11px',color:'#94a3b8',display:'flex',alignItems:'flex-start',gap:'6px'}}>
-              <i className="ti ti-info-circle" style={{fontSize:'13px',flexShrink:0,marginTop:'1px'}} aria-hidden="true" />
-              <span>Native files are optional during beta. If not available, the method will show text parameters with a "file pending review" badge.</span>
-            </div>
+        <Section title="Sample preparation and sensitivity">
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Field label="Preparation method" className="sm:col-span-2"><Select value={form.sample_prep_method} onChange={set('sample_prep_method')} options={PREP_METHODS} placeholder="Select a method" /></Field>
+            <Field label="LLOQ"><Text mono inputMode="decimal" value={form.lloq} onChange={set('lloq')} placeholder="1.0" /></Field>
+            <Field label="Unit"><Select value={form.lloq_unit} onChange={set('lloq_unit')} options={UNITS} /></Field>
+            <Field label="Protocol" hint="One step per line, with volumes, speeds, times and temperatures." className="sm:col-span-4">
+              <textarea value={form.sample_prep_details} onChange={e => set('sample_prep_details')(e.target.value)} rows={7}
+                placeholder={'Add 300 µL cold acetonitrile to 100 µL serum.\nVortex 30 s.\nCentrifuge at 15,000 rpm for 5 min.\nTransfer the supernatant to a vial.'}
+                className={cn(inputCls, 'h-auto py-2 leading-relaxed')} />
+            </Field>
           </div>
-        </Panel>
+        </Section>
       )}
 
       {step === 4 && (
         <>
-          <Panel title="Attribution and credit" icon="ti-user-check">
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
-              <div><label style={LS}>Your name <span style={{color:'#f87171'}}>*</span></label><input style={IS} value={form.submitted_by} onChange={u('submitted_by')} placeholder="Dr. Anna Schmidt" /></div>
-              <div><label style={LS}>Institution / Laboratory <span style={{color:'#f87171'}}>*</span></label><input style={IS} value={form.laboratory} onChange={u('laboratory')} placeholder="University Hospital Basel" /></div>
-              <div><label style={LS}>Country</label><input style={IS} value={form.country} onChange={u('country')} placeholder="Switzerland" /></div>
-              <div><label style={LS}>Contact email (not public)</label><input type="email" style={IS} value={form.submitted_by_email} onChange={u('submitted_by_email')} placeholder="a.schmidt@unibas.ch" /></div>
+          <Section title="Where the method comes from" description="Shown on the method page so others can check it against the original.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2"><Choice options={SOURCE_TYPES} value={form.source_type} onChange={set('source_type')} /></div>
+              {form.source_type !== 'Laboratory method' && (
+                <Field label="Authors of the source" className="sm:col-span-2"><Text value={form.source_authors} onChange={set('source_authors')} placeholder="As listed on the document" /></Field>
+              )}
+              <Field label="Reference" hint="Citation, DOI or document number."><Text value={form.reference} onChange={set('reference')} placeholder="e.g. Ther Drug Monit 2019;41:29–37" /></Field>
+              <Field label="Link to the source"><Text type="url" value={form.source_url} onChange={set('source_url')} placeholder="https://" /></Field>
+              <Field label="Notes for other labs" className="sm:col-span-2">
+                <textarea value={form.notes} onChange={e => set('notes')(e.target.value)} rows={3} placeholder="Critical separations, known interferences, tips."
+                  className={cn(inputCls, 'h-auto py-2 leading-relaxed')} />
+              </Field>
             </div>
-            <div style={{marginBottom:'10px'}}>
-              <label style={LS}>Reference / DOI (optional)</label>
-              <input style={IS} value={form.reference} onChange={u('reference')} placeholder="10.1016/j.jchromb.2024.xxxxx or application note number" />
+          </Section>
+          <Section title="Your credit" description="Your name and laboratory appear on the method page as its contributor.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Your name" required error={invalid('submitted_by')}><Text value={form.submitted_by} onChange={set('submitted_by')} invalid={invalid('submitted_by')} autoComplete="name" /></Field>
+              <Field label="Email" hint="Optional. Only for a reviewer's questions; never shown on the site."><Text type="email" value={form.submitted_by_email} onChange={set('submitted_by_email')} autoComplete="email" /></Field>
+              <Field label="Institution or laboratory" required error={invalid('laboratory')}><Text value={form.laboratory} onChange={set('laboratory')} invalid={invalid('laboratory')} autoComplete="organization" /></Field>
+              <Field label="Country"><Text value={form.country} onChange={set('country')} autoComplete="country-name" /></Field>
             </div>
-            <div>
-              <label style={LS}>Notes for reviewers (optional)</label>
-              <textarea rows={3} style={{...IS, resize:'vertical' as const}} value={form.notes} onChange={u('notes')} placeholder="Any context the MetaboLC team should know before publishing…" />
-            </div>
-          </Panel>
-          <div style={{display:'flex',alignItems:'flex-start',gap:'8px',padding:'10px 14px',
-            border:'0.5px solid rgba(74,222,128,0.3)',borderRadius:'8px',background:'rgba(74,222,128,0.08)',marginBottom:'10px'}}>
-            <i className="ti ti-shield-check" style={{fontSize:'15px',color:'#4ade80',flexShrink:0,marginTop:'1px'}} aria-hidden="true" />
-            <div style={{fontSize:'11px',color:'#4ade80'}}>
-              Your method will be reviewed by the MetaboLC team before publication. You'll receive an email once it's live. Credit will appear publicly in the method detail page.
-            </div>
-          </div>
+          </Section>
+          <Section title="Before you send">
+            <ul className="space-y-1 text-sm text-foreground">
+              <li><span className="num font-semibold">{validTransitions.length}</span> transitions, <span className="num font-semibold">{validSteps.length}</span> gradient steps.</li>
+              {validTransitions.length === 0 && (
+                <li className="flex items-center gap-1.5 text-warning"><TriangleAlert size={14} /> No transitions yet. A method without them is hard for another lab to reuse.</li>
+              )}
+              {transitions.length > validTransitions.length && (
+                <li className="text-muted-foreground"><span className="num">{transitions.length - validTransitions.length}</span> incomplete transition rows will not be sent.</li>
+              )}
+              <li className="text-muted-foreground">A reviewer reads every submission before it is published. <Link to="/verification" className="text-primary hover:underline">How review works</Link></li>
+            </ul>
+          </Section>
         </>
       )}
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-        paddingTop:'12px',borderTop:'0.5px solid rgba(255,255,255,0.1)'}}>
-        <button onClick={() => setStep(s => Math.max(1, s-1))}
-          style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 14px',
-            background:'rgba(255,255,255,0.05)',color:'#94a3b8',border:'0.5px solid rgba(255,255,255,0.15)',
-            borderRadius:'8px',fontSize:'12px',cursor:'pointer',
-            visibility: step === 1 ? 'hidden' : 'visible'}}>
-          <i className="ti ti-arrow-left" aria-hidden="true" /> Back
-        </button>
-        {step < 4
-          ? <button onClick={() => setStep(s => s+1)}
-              style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 16px',
-                background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',
-                fontSize:'12px',fontWeight:'500',cursor:'pointer'}}>
-              Continue <i className="ti ti-arrow-right" aria-hidden="true" />
-            </button>
-          : <button onClick={handleSubmit} disabled={submitting}
-              style={{display:'flex',alignItems:'center',gap:'5px',padding:'8px 16px',
-                background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',
-                fontSize:'12px',fontWeight:'500',cursor:'pointer',
-                opacity: submitting ? 0.6 : 1}}>
-              <i className="ti ti-send" aria-hidden="true" />
-              {submitting ? 'Submitting…' : 'Submit method'}
-            </button>
-        }
+      {showErrors && missing(step).length > 0 && (
+        <p role="alert" className="text-sm text-destructive">Fill in the required fields on this step to continue.</p>
+      )}
+      {error && <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-foreground">{error}</p>}
+
+      <div className="flex items-center justify-between">
+        <Button variant="outline" size="lg" onClick={() => go(step - 1)} className={cn(step === 0 && 'invisible')}><ArrowLeft /> Back</Button>
+        {last
+          ? <Button size="lg" disabled={submitting} onClick={submit}>{submitting ? 'Sending…' : 'Submit method'}</Button>
+          : <Button size="lg" onClick={() => go(step + 1)}>Continue <ArrowRight /></Button>}
       </div>
     </div>
   )

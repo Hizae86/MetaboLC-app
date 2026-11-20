@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, FlaskConical, ExternalLink } from 'lucide-react'
-import SEO from '../components/SEO'
+import { ArrowDown, ArrowUp, ExternalLink, Search } from 'lucide-react'
 import axios from 'axios'
+import SEO from '../components/SEO'
+import { MatrixBadge, Verified } from '@/components/method/badges'
+import { Skeleton } from '@/components/ui/skeleton'
+import { mz, num } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
@@ -12,186 +16,172 @@ interface Compound {
   pubchem_cid: number | null
   formula: string | null
   exact_mass: number | null
-  methods: { id: number; matrix: string; instrument: string; status: string }[]
   method_count: number
+  verified_count: number
+  matrices: string[]
+  applications: string[]
+  common_transition: { precursor_mz: number; product_mz: number } | null
+  polarity: string | null
+  rt_min: number | null
+  rt_max: number | null
 }
 
-const MATRIX_CLS: Record<string, { bg: string; text: string; border: string }> = {
-  plasma:             { bg: 'rgba(248,113,113,0.12)', text: '#f87171', border: 'rgba(248,113,113,0.3)' },
-  serum:              { bg: 'rgba(251,146,60,0.12)',  text: '#fb923c', border: 'rgba(251,146,60,0.3)' },
-  urine:              { bg: 'rgba(250,204,21,0.12)',  text: '#facc15', border: 'rgba(250,204,21,0.3)' },
-  'whole blood':      { bg: 'rgba(192,132,252,0.12)', text: '#c084fc', border: 'rgba(192,132,252,0.3)' },
-  'dried blood spot': { bg: 'rgba(244,114,182,0.12)', text: '#f472b6', border: 'rgba(244,114,182,0.3)' },
-  csf:                { bg: 'rgba(125,211,252,0.12)', text: '#7dd3fc', border: 'rgba(125,211,252,0.3)' },
-  saliva:             { bg: 'rgba(74,222,128,0.12)',  text: '#4ade80', border: 'rgba(74,222,128,0.3)' },
-  other:              { bg: 'rgba(255,255,255,0.06)', text: '#94a3b8', border: 'rgba(255,255,255,0.12)' },
-}
+type SortKey = 'name' | 'mass' | 'methods'
 
+/** Analyte-first entry point: find the compound, see at a glance how it is
+ *  usually measured (consensus quant transition, matrices), then jump to the
+ *  explorer already filtered on it. */
 export default function CompoundIndex() {
-  const [compounds, setCompounds] = useState<Compound[]>([])
+  const [compounds, setCompounds] = useState<Compound[] | null>(null)
+  const [error, setError] = useState(false)
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
+  const [matrix, setMatrix] = useState<string | null>(null)
+  const [sort, setSort] = useState<SortKey>('methods')
+  const [asc, setAsc] = useState(false)
 
   useEffect(() => {
     axios.get(`${API}/methods/compounds`)
       .then(res => setCompounds(res.data))
-      .finally(() => setLoading(false))
+      .catch(() => setError(true))
   }, [])
 
-  const filtered = compounds.filter(c =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.formula?.toLowerCase().includes(search.toLowerCase())
+  const matrices = useMemo(() => {
+    const count = new Map<string, number>()
+    compounds?.forEach(c => c.matrices.forEach(m => count.set(m, (count.get(m) || 0) + 1)))
+    return [...count.entries()].sort((a, b) => b[1] - a[1])
+  }, [compounds])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    let list = (compounds || []).filter(c =>
+      (!q || c.name.toLowerCase().includes(q) || c.formula?.toLowerCase().includes(q)
+        || c.applications.some(a => a.toLowerCase().includes(q)))
+      && (!matrix || c.matrices.includes(matrix)))
+    const dir = asc ? 1 : -1
+    list = [...list].sort((a, b) => {
+      if (sort === 'name') return dir * a.name.localeCompare(b.name)
+      if (sort === 'mass') return dir * ((a.exact_mass ?? Infinity) - (b.exact_mass ?? Infinity))
+      return dir * (a.method_count - b.method_count) || a.name.localeCompare(b.name)
+    })
+    return list
+  }, [compounds, search, matrix, sort, asc])
+
+  const header = (key: SortKey, label: string, className?: string) => (
+    <th className={cn('px-3 py-2 text-left font-medium', className)}>
+      <button type="button" className="inline-flex items-center gap-1 hover:text-foreground"
+        onClick={() => { if (sort === key) setAsc(!asc); else { setSort(key); setAsc(key === 'name') } }}>
+        {label}
+        {sort === key && (asc ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+      </button>
+    </th>
   )
 
   return (
-    <>
-    <SEO title="Compound Index — Analytes Across Clinical LC-MS/MS Methods"
-      description="Browse every analyte in the MetaboLC repository with formula, exact mass, and the methods that quantify it." />
-    <style>{`
-      .compounds-page { background: #060d1a; min-height: 100vh; }
-      .compounds-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
-      .compounds-page .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
-      .compounds-page .text-slate-900, .compounds-page .text-slate-800 { color: #e2e8f0 !important; }
-      .compounds-page .text-slate-600 { color: #94a3b8 !important; }
-      .compounds-page .text-slate-500 { color: #64748b !important; }
-      .compounds-page .text-slate-400 { color: #475569 !important; }
-      .compounds-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
-      .compounds-page .hover\\:text-slate-600:hover { color: #94a3b8 !important; }
-      .compounds-page input { color: #e2e8f0 !important; }
-      .compounds-page img { filter: invert(1) hue-rotate(180deg) brightness(0.9); border-radius: 6px; }
-    `}</style>
-    <div className='compounds-page' style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}}>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900 tracking-tight mb-1">
-          Compound Index
-        </h1>
-        <p className="text-xs text-slate-400">
-          {compounds.length} unique analytes
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <SEO title="Analyte Index — Clinical LC-MS/MS Methods by Compound"
+        description="Every analyte in Koiné with its usual quantifier transition, matrices, and the methods that measure it." />
+
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Analyte index</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {compounds ? <><span className="num">{compounds.length}</span> analytes across the repository. The transition shown is the quantifier most methods agree on.</> : 'Loading…'}
         </p>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-slate-200
-        rounded-xl focus-within:border-indigo-500 focus-within:ring-4
-        focus-within:ring-indigo-500/10 transition-all shadow-sm mb-6">
-        <Search size={16} className="text-indigo-400 shrink-0" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by compound name or formula…"
-          className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
-        />
-        {search && (
-          <button onClick={() => setSearch('')}
-            className="text-slate-400 hover:text-slate-600">×</button>
-        )}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring sm:max-w-sm">
+          <Search size={15} className="shrink-0 text-muted-foreground" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Name, formula, or application…"
+            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+          {search && <button type="button" onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">×</button>}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {matrices.slice(0, 7).map(([m, n]) => (
+            <button key={m} type="button" onClick={() => setMatrix(matrix === m ? null : m)}
+              className={cn('rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                matrix === m ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground')}>
+              {m} <span className="num opacity-70">{n}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-16 text-slate-400 text-sm">Loading compounds…</div>
+      {error ? (
+        <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">Couldn't load the analyte index. Is the backend running?</div>
+      ) : !compounds ? (
+        <div className="space-y-2">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filtered.map(c => (
-            <div key={c.normalized}
-              className="bg-white border border-slate-200 rounded-xl overflow-hidden
-                hover:border-indigo-400/40 hover:shadow-md hover:-translate-y-0.5
-                transition-all duration-200 flex flex-col">
-
-              {/* Structure image */}
-              {(() => {
-                const hasImg = !!(c.pubchem_cid && c.pubchem_cid > 0 && !imgErrors.has(c.pubchem_cid))
-                return (
-                  <div className="flex items-center justify-center p-3"
-                    style={{height:'120px', background: hasImg ? '#000000' : 'rgba(255,255,255,0.03)'}}>
-                    {hasImg ? (
-                      <img
-                        src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${c.pubchem_cid}/PNG`}
-                        alt={c.name}
-                        loading="lazy"
-                        style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}}
-                        onError={() => setImgErrors(prev => new Set([...prev, c.pubchem_cid!]))}
-                        onLoad={e => (e.currentTarget.style.opacity = '1')}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1">
-                        <FlaskConical size={24} className="text-slate-600" />
-                        {c.formula && (
-                          <span className="text-xs font-mono text-slate-500">{c.formula}</span>
-                        )}
-                      </div>
+        <div className="relative overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[760px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                {header('name', 'Analyte')}
+                {header('mass', 'Exact mass', 'w-28')}
+                <th className="w-40 px-3 py-2 text-left font-medium">Usual quant (m/z)</th>
+                <th className="w-24 px-3 py-2 text-left font-medium">RT (min)</th>
+                <th className="px-3 py-2 text-left font-medium">Matrices</th>
+                {header('methods', 'Methods', 'w-24')}
+                <th className="w-10 px-3 py-2"><span className="sr-only">PubChem</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map(c => (
+                <tr key={c.normalized} className="group hover:bg-accent/50">
+                  <td className="px-3 py-2">
+                    <Link to={`/methods?q=${encodeURIComponent(c.name)}`} className="font-medium text-foreground group-hover:text-primary">
+                      {c.name}
+                    </Link>
+                    <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">
+                      {c.formula && <span className="num">{c.formula}</span>}
+                      {c.applications.length > 0 && <span className="ml-2">{c.applications.join(' · ')}</span>}
+                    </span>
+                  </td>
+                  <td className="num px-3 py-2 text-muted-foreground">{c.exact_mass ? num(c.exact_mass, 4) : '—'}</td>
+                  <td className="px-3 py-2">
+                    {c.common_transition ? (
+                      <span className="num text-foreground">
+                        {mz(c.common_transition.precursor_mz)} → {mz(c.common_transition.product_mz)}
+                        {c.polarity && <span className="ml-1.5 text-xs text-muted-foreground">{c.polarity.replace('ESI', '')}</span>}
+                      </span>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="num px-3 py-2 text-muted-foreground">
+                    {c.rt_min == null ? '—' : c.rt_max != null && c.rt_max - c.rt_min > 0.05 ? `${num(c.rt_min, 2)}–${num(c.rt_max, 2)}` : num(c.rt_min, 2)}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="flex flex-wrap gap-1">
+                      {c.matrices.slice(0, 3).map(m => <MatrixBadge key={m} matrix={m} />)}
+                      {c.matrices.length > 3 && <span className="text-xs text-muted-foreground">+{c.matrices.length - 3}</span>}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="num text-foreground">{c.method_count}</span>
+                    {c.verified_count > 0 && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-success" title={`${c.verified_count} verified`}>
+                        <Verified /> {c.verified_count}
+                      </span>
                     )}
-                  </div>
-                )
-              })()}
-
-              {/* Info */}
-              <div className="p-3 flex flex-col flex-1">
-                {/* Name */}
-                <p className="text-xs font-semibold text-slate-900 leading-snug mb-1 truncate" title={c.name}>
-                  {c.name}
-                </p>
-
-                {/* Formula + mass in one line */}
-                <div className="flex items-center gap-1.5 mb-2">
-                  {c.formula && (
-                    <span className="text-xs font-mono px-1.5 py-0.5 rounded-md"
-                      style={{background:'rgba(129,140,248,0.12)', color:'#a5b4fc', border:'1px solid rgba(129,140,248,0.25)'}}>
-                      {c.formula}
-                    </span>
-                  )}
-                  {c.exact_mass && (
-                    <span className="text-xs font-mono text-slate-400">
-                      {c.exact_mass.toFixed(3)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Matrix badges — max 2 + overflow */}
-                {(() => {
-                  const matrices = [...new Set(c.methods.map((m: any) => m.matrix?.toLowerCase()).filter(Boolean))]
-                  const visible = matrices.slice(0, 2)
-                  const extra = matrices.length - 2
-                  return (
-                    <div className="flex items-center gap-1 mb-2 flex-1">
-                      {visible.map((matrix: any) => {
-                        const mc = MATRIX_CLS[matrix] || MATRIX_CLS.other
-                        return (
-                          <span key={matrix}
-                            className="text-xs px-1.5 py-0.5 rounded-md font-medium truncate max-w-[70px]"
-                            style={{background: mc.bg, color: mc.text, border: `1px solid ${mc.border}`}} title={matrix}>
-                            {matrix}
-                          </span>
-                        )
-                      })}
-                      {extra > 0 && (
-                        <span className="text-xs text-slate-400 font-medium">+{extra}</span>
-                      )}
-                    </div>
-                  )
-                })()}
-
-                {/* Footer */}
-                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
-                  <span className="text-xs text-slate-500 font-medium">
-                    {c.method_count} method{c.method_count !== 1 ? 's' : ''}
-                  </span>
-                  {c.pubchem_cid && c.pubchem_cid > 0 && (
-                    <a href={`https://pubchem.ncbi.nlm.nih.gov/compound/${c.pubchem_cid}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="text-slate-400 hover:text-indigo-500 transition-colors"
-                      onClick={e => e.stopPropagation()}>
-                      <ExternalLink size={11} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                  <td className="px-3 py-2">
+                    {c.pubchem_cid && (
+                      <a href={`https://pubchem.ncbi.nlm.nih.gov/compound/${c.pubchem_cid}`} target="_blank" rel="noopener noreferrer"
+                        title="Open in PubChem" className="text-muted-foreground hover:text-primary">
+                        <ExternalLink size={13} />
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  No analytes match {search && <>“{search}”</>}{matrix && <> in {matrix}</>}.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
-    </>
   )
 }

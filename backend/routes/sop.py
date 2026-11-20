@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from backend.database import get_db
+from backend.visibility import PUBLIC_STATUSES
 from backend.models import Method, MRMTransition
 from backend.rate_limit import rate_limit
 import anthropic
 import os
-from dotenv import load_dotenv
-load_dotenv()
+import backend.env  # noqa: F401
 
 router = APIRouter()
 
@@ -147,7 +147,7 @@ Generate a complete SOP in English with these sections:
 - CLSI EP17-A2: Protocols for Determination of Limits of Detection and Limits of Quantitation
 - CLSI EP15-A3: User Verification of Precision and Estimation of Bias
 - CLSI C62-A: Liquid Chromatography-Mass Spectrometry Methods
-- Method source: MetaboLC Repository, Method ID {method.id}
+- Method source: Koiné Repository, Method ID {method.id}
 
 Be very specific with numbers — calculate actual QC concentrations, calibrator levels, and volumes based on the method parameters provided. Make it a true "cookbook" that a lab scientist can follow without interpretation."""
 
@@ -162,7 +162,7 @@ def generate_sop_custom(payload: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail="AI features not available in this deployment")
     method_id = payload.get("method_id")
     method = db.query(Method).filter(Method.id == method_id).first()
-    if not method:
+    if not method or method.status not in PUBLIC_STATUSES:
         raise HTTPException(status_code=404, detail="Method not found")
 
     transitions = db.query(MRMTransition).filter(
@@ -293,7 +293,7 @@ Structure:
 )
 def generate_sop(method_id: int, db: Session = Depends(get_db)):
     method = db.query(Method).filter(Method.id == method_id).first()
-    if not method:
+    if not method or method.status not in PUBLIC_STATUSES:
         raise HTTPException(status_code=404, detail="Method not found")
 
     transitions = db.query(MRMTransition).filter(

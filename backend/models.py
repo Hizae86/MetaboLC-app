@@ -24,14 +24,19 @@ class Method(Base):
     analyte_cas = Column(String(50), nullable=True)
     analyte_inchikey = Column(String(100), nullable=True)
     analyte_exact_mass = Column(Float, nullable=True)
-    matrix = Column(String(50), nullable=False)
-    clinical_application = Column(String(200), nullable=True)
+    # Indexed: these three are the fields every quick-filter in the UI
+    # (Home's matrix/clinical-area chips, Methods.tsx's pills + facets,
+    # CommandPalette's matrix counts) filters on. Harmless without an index
+    # at today's catalog size, but there was previously zero backend search
+    # infrastructure to grow into.
+    matrix = Column(String(50), nullable=False, index=True)
+    clinical_application = Column(String(200), nullable=True, index=True)
 
     # Ionization
     ionization_mode = Column(String(20), nullable=False)
-    
+
     # Instrument
-    instrument_manufacturer = Column(String(50), nullable=False)
+    instrument_manufacturer = Column(String(50), nullable=False, index=True)
     instrument_model = Column(String(100), nullable=False)
     
     # Column
@@ -100,6 +105,15 @@ class Method(Base):
     ddms2_resolution = Column(Float, nullable=True)
     ddms2_isolation_window = Column(Float, nullable=True)
     nce_stepped = Column(String(50), nullable=True)
+    # Ion mobility / differential mobility device in front of the MS (e.g. Sciex
+    # SelexION DMS, Thermo FAIMS). Generic names so any vendor can use them.
+    ion_mobility_device = Column(String(100), nullable=True)
+    im_separation_voltage_v = Column(Float, nullable=True)
+    im_compensation_voltage_v = Column(Float, nullable=True)
+    im_offset_v = Column(Float, nullable=True)
+    im_temperature_c = Column(Float, nullable=True)
+    im_resolution = Column(String(50), nullable=True)
+    im_modifier = Column(String(100), nullable=True)
 
     # Sample prep
     sample_prep_method = Column(String(100), nullable=True)
@@ -126,7 +140,14 @@ class Method(Base):
     reference = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     is_derivatized = Column(Integer, default=0)
+    # Who transcribed and reviewed the method (the contributor credited on the site).
     submitted_by = Column(String(200), nullable=True)
+    # Provenance of the method itself: what kind of document it comes from,
+    # who wrote that document, and where to read it. `reference` keeps the
+    # document's own identifier (note number, citation or DOI).
+    source_type = Column(String(40), nullable=True)
+    source_authors = Column(Text, nullable=True)
+    source_url = Column(String(500), nullable=True)
     submitted_by_email = Column(String(200), nullable=True)
     lloq_unit = Column(String(20), default='ng/mL')
     view_count = Column(Integer, default=0)
@@ -192,6 +213,8 @@ class MRMTransition(Base):
     q3_pre_bias = Column(Float, nullable=True)
     derivative = Column(String(50), nullable=True)
     is_derivatized = Column(Integer, default=0)  # already in the live DB, not previously declared
+    # 1 = a reviewer looked at the automatic m/z / polarity warnings for this row and confirmed it is right
+    review_checked = Column(Integer, default=0)
     # PubChem enrichment
     pubchem_cid = Column(Integer, nullable=True)
     pubchem_formula = Column(String(100), nullable=True)
@@ -236,5 +259,33 @@ class MethodConfirmation(Base):
     country = Column(String(100), nullable=True)
     instrument = Column(String(200), nullable=True)
     comment = Column(String(500), nullable=True)
-    rating = Column(Integer, default=5)
+    rating = Column(Integer, default=5)  # legacy star rating, no longer asked
+    outcome = Column(String(20), nullable=True)   # as_published | with_changes | failed (see backend/community.py)
+    changes = Column(String(500), nullable=True)  # what they changed, or what went wrong
+    status = Column(String(20), nullable=True)    # pending | published | hidden; NULL = published (legacy)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ─── VALIDATION MODULE · EARLY ACCESS LIST ────────────────────────
+class ValidationWaitlist(Base):
+    """People who asked for early access to the (not yet built) method
+    validation module. One row per email; method_ids accumulates the methods
+    they asked to validate from method pages, so demand can be ranked."""
+    __tablename__ = "validation_waitlist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(254), nullable=False, unique=True, index=True)
+    name = Column(String(200), nullable=True)
+    laboratory = Column(String(200), nullable=True)
+    country = Column(String(100), nullable=True)
+    role = Column(String(100), nullable=True)
+    vendor = Column(String(100), nullable=True)
+    guideline = Column(String(100), nullable=True)
+    methods_per_year = Column(String(20), nullable=True)
+    method_ids = Column(String(500), nullable=True)
+    modules = Column(String(200), nullable=True)  # module ids asked for from /modules, comma-separated
+    note = Column(String(500), nullable=True)
+    source = Column(String(50), nullable=True)
+    consent_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)

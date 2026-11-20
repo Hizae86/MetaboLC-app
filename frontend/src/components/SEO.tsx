@@ -6,7 +6,7 @@ interface SEOProps {
   image?: string
 }
 
-const SITE_NAME = 'MetaboLC'
+const SITE_NAME = 'Koiné'
 const DEFAULT_DESCRIPTION = 'The open reference library of clinical LC-MS/MS methods — searchable by analyte, matrix, and instrument.'
 const DEFAULT_IMAGE = '/ms-instrument.png'
 

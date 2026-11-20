@@ -1,90 +1,97 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, FlaskConical, Users, Sparkles, Plus, Calculator, ArrowRight, ChevronDown, Clock } from 'lucide-react'
+import {
+  ArrowRight, ArrowRightLeft, Beaker, BookOpen, Calculator, ChevronDown, ClipboardCheck, FlaskConical,
+  GitCompareArrows, Inbox, Layers, Library, Menu, Plus, Scale, SearchCheck, TestTubes, Users, X, type LucideIcon } from 'lucide-react'
+import CommandPalette from './CommandPalette'
+import ThemeToggle from './ThemeToggle'
+import { isThemedRoute } from '@/lib/theme'
+import { REVIEW_EVENT, adminConfig, useAdmin } from '@/lib/admin'
+import { API } from '@/lib/api'
+import { cn } from '@/lib/utils'
+import { MODULES, STATUS_LABEL } from '@/lib/modules'
 
-function ToolsDropdown({ active }: { active: boolean }) {
+const TOOLS: Item[] = [
+  { to: '/tools/method-transfer', label: 'Method Transfer', hint: 'HPLC → UHPLC scaling', icon: ArrowRightLeft },
+  { to: '/tools/mass-calculator', label: 'Mass Calculator', hint: 'Monoisotopic mass & adducts', icon: Calculator },
+  { to: '/tools/dilution-calculator', label: 'Dilution Calculator', hint: 'QC & calibrator preparation', icon: Beaker },
+  { to: '/tools/matrix-effect', label: 'Matrix Effect & Recovery', hint: 'Ion suppression & extraction efficiency', icon: TestTubes },
+  { to: '/tools/interference', label: 'Interference Checker', hint: 'Isobaric overlaps across the repository', icon: SearchCheck },
+  { to: '/tools/unit-converter', label: 'Unit Converter', hint: 'ng/mL ↔ nmol/L', icon: Scale },
+]
+
+type Item = { to?: string; label: string; hint: string; icon: LucideIcon; badge?: string; muted?: boolean }
+
+/** The reference library: everything that is free and live today. */
+const LIBRARY: Item[] = [
+  { to: '/methods', label: 'Methods', hint: 'Search and filter every method', icon: BookOpen },
+  { to: '/compounds', label: 'Analytes', hint: 'Browse by compound', icon: FlaskConical },
+  { to: '/compare', label: 'Compare methods', hint: 'Side by side, gradients overlaid', icon: GitCompareArrows },
+  { to: '/panel-builder', label: 'Panel builder', hint: 'Combine transitions, check isobaric conflicts', icon: Layers },
+  { to: '/contributors', label: 'Contributors', hint: 'Who shared the methods', icon: Users },
+]
+
+/** Modules menu, built from the shared definitions. The library has its own menu. */
+const MODULE_ITEMS: Item[] = MODULES.filter(m => m.id !== 'library').map(m => ({
+  to: m.to ?? `/modules#${m.id}`, label: m.title, hint: m.hint, icon: m.icon, badge: STATUS_LABEL[m.status],
+}))
+
+const linkCls = (active: boolean) => cn(
+  'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium no-underline transition-colors',
+  active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+)
+
+/** Reviewer-only link with the number of submissions waiting. */
+function ReviewLink({ active }: { active: boolean }) {
+  const { isAdmin } = useAdmin()
+  const [count, setCount] = useState<number | null>(null)
+  useEffect(() => {
+    if (!isAdmin) { setCount(null); return }
+    const load = () => axios.get(`${API}/methods/review-queue/count`, adminConfig())
+      .then(r => setCount((r.data.submitted ?? 0) + (r.data.community_pending ?? 0))).catch(() => setCount(null))
+    load()
+    window.addEventListener(REVIEW_EVENT, load)
+    return () => window.removeEventListener(REVIEW_EVENT, load)
+  }, [isAdmin])
+  if (!isAdmin) return null
+  return (
+    <Link to="/review" className={linkCls(active)} title="Review queue">
+      <Inbox size={15} />
+      Review
+      {!!count && <span className="num rounded-full bg-warning px-1.5 text-[11px] font-semibold text-background">{count}</span>}
+    </Link>
+  )
+}
+
+function NavMenu({ label, icon: Icon, items, active, footer }: { label: string; icon: LucideIcon; items: Item[]; active: boolean; footer?: { to: string; label: string } }) {
   const [open, setOpen] = useState(false)
-
+  const { pathname } = useLocation()
+  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-          transition-all duration-150
-          ${active ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
-        <Calculator size={15} />
-        Tools
-<ChevronDown size={12} style={{opacity:0.5, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.15s'}} />
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="true" className={linkCls(active)}>
+        <Icon size={15} />
+        {label}
+        <ChevronDown size={12} className={cn('opacity-60 transition-transform', open && 'rotate-180')} />
       </button>
-
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 mt-2 w-56 bg-[#0e1b2e] border border-white/10
-            rounded-xl shadow-xl z-50 overflow-hidden" style={{boxShadow:'0 20px 50px rgba(0,0,0,0.5)'}}>
-            <div className="px-3 py-2 border-b border-white/10">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tools</p>
-            </div>
-            <Link to="/tools/method-transfer"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
-                hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline border-b border-white/5">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-                <ArrowRight size={13} className="text-indigo-300" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold">Method Transfer</p>
-                <p className="text-xs text-slate-500">HPLC → UHPLC scaling</p>
-              </div>
-            </Link>
-            <Link to="/tools/mass-calculator"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
-                hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-                <Calculator size={13} className="text-indigo-300" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold">Mass Calculator</p>
-                <p className="text-xs text-slate-500">Monoisotopic mass & adducts</p>
-              </div>
-            </Link>
-              <Link to="/tools/dilution-calculator"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
-                  hover:bg-teal-500/10 hover:text-teal-300 transition-colors no-underline border-b border-white/5">
-                <div className="w-7 h-7 rounded-lg bg-teal-500/15 flex items-center justify-center shrink-0">
-                  <FlaskConical size={13} className="text-teal-300" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold">Dilution Calculator</p>
-                  <p className="text-xs text-slate-500">QC & calibrator preparation</p>
-                </div>
+          <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl">
+            {items.map(item => <MenuRow key={item.label} item={item} onPick={() => setOpen(false)} />)}
+            {footer && (
+              <Link to={footer.to} onClick={() => setOpen(false)}
+                className="flex items-center justify-between bg-muted/40 px-3.5 py-2.5 text-xs font-semibold text-primary no-underline hover:bg-accent">
+                {footer.label} <ArrowRight size={13} />
               </Link>
-              <Link to="/tools/matrix-effect"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
-                  hover:bg-orange-500/10 hover:text-orange-300 transition-colors no-underline border-b border-white/5">
-                <div className="w-7 h-7 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
-                  <span className="text-sm">⚗️</span>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold">Matrix Effect & Recovery</p>
-                  <p className="text-xs text-slate-500">Ion suppression & extraction efficiency</p>
-                </div>
-              </Link>
-              <Link to="/tools/rt-predictor"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
-                  hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors no-underline">
-                <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-                  <Clock size={13} className="text-indigo-300" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold">RT Predictor</p>
-                  <p className="text-xs text-slate-500">logP & gradient estimate</p>
-                </div>
-              </Link>
+            )}
           </div>
         </>
       )}
@@ -92,88 +99,131 @@ function ToolsDropdown({ active }: { active: boolean }) {
   )
 }
 
+function MenuRow({ item: { to, label, hint, icon: Icon, badge, muted }, onPick }: { item: Item; onPick?: () => void }) {
+  const body = (
+    <>
+      <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', to && !muted ? 'bg-muted text-muted-foreground' : 'bg-muted/50 text-muted-foreground/60')}>
+        <Icon size={14} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cn('flex items-center gap-1.5 text-xs font-semibold', to && !muted ? 'text-foreground' : 'text-muted-foreground')}>
+          {label}
+          {badge && <span className={cn('rounded-full px-1.5 py-px text-[10px] font-semibold',
+            to && !muted ? 'border border-primary/35 bg-primary/10 text-primary' : 'border border-border text-muted-foreground')}>{badge}</span>}
+        </span>
+        <span className="block text-xs text-muted-foreground">{hint}</span>
+      </span>
+    </>
+  )
+  const cls = 'flex items-center gap-3 border-b border-border px-3.5 py-2.5 no-underline last:border-b-0'
+  return to
+    ? <Link to={to} onClick={onPick} className={cn(cls, 'transition-colors hover:bg-accent')}>{body}</Link>
+    : <div className={cn(cls, 'cursor-default')} aria-disabled="true">{body}</div>
+}
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
+  const { pathname } = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', handler)
+    handler()
+    window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
   }, [])
-  const location = useLocation()
-  const active = (path: string) => path === '/methods' ? location.pathname.startsWith('/methods') || location.pathname.startsWith('/method') : location.pathname === path
+
+  const active = (path: string) =>
+    path === '/methods' ? pathname.startsWith('/method') : pathname === path
 
   return (
-    <nav className="sticky top-0 z-50" style={{background: scrolled ? "rgba(6,13,26,0.85)" : "transparent", borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "none", backdropFilter: scrolled ? "blur(16px)" : "none", transition: "all 0.2s"}}>
-      <div className="max-w-screen-xl mx-auto px-6 flex justify-between items-center h-16">
-
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 no-underline group">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="36" rx="8" fill="#1e3a5f"/>
-            <polyline points="4,26 8,26 10,26 12,24 14,10 16,26 18,26 20,22 22,8 24,26 26,26 28,24 30,26 32,26"
-              fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <line x1="4" y1="28" x2="32" y2="28" stroke="#60a5fa" strokeWidth="1" strokeOpacity="0.4"/>
-          </svg>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-bold text-white text-lg tracking-tight">MetaboLC</span>
-              <span style={{
-                fontSize:'10px', fontWeight:600, letterSpacing:'0.06em',
-                color:'#a5b4fc', background:'rgba(99,102,241,0.15)',
-                padding:'2px 7px', borderRadius:'20px',
-                border:'1px solid rgba(99,102,241,0.35)', lineHeight:'1.4',
-                verticalAlign:'middle'
-              }}>BETA</span>
-            </div>
-            <span className="text-xs tracking-wide -mt-0.5 block" style={{color:"#64748b"}}>
+    <nav className={cn(
+      'sticky top-0 z-50 border-b transition-colors',
+      scrolled || menuOpen ? 'border-border bg-background/95 backdrop-blur-lg' : 'border-transparent bg-transparent',
+    )}>
+      <div className="mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 sm:px-6">
+        <Link to="/" className="flex items-center gap-2.5 no-underline" aria-label="Koiné home">
+          {/* Logo with the name underneath, BETA beside it */}
+          <span className="flex flex-col items-center leading-none">
+            <img src="/koine-mark.svg" width={30} height={30} alt="" aria-hidden="true" className="hidden size-[30px] dark:block" />
+            <img src="/koine-icon.svg" width={30} height={30} alt="" aria-hidden="true" className="size-[30px] dark:hidden" />
+            <span className="mt-1 text-[13px] font-semibold tracking-tight text-foreground">Koiné</span>
+          </span>
+          <span className="flex flex-col items-start gap-1">
+            <span className="rounded-full border border-primary/35 bg-primary/10 px-1.5 py-px text-[10px] font-semibold tracking-wider text-primary">
+              BETA
+            </span>
+            <span className="hidden whitespace-nowrap text-xs tracking-wide text-muted-foreground 2xl:block">
               LC-MS/MS Method Reference Library
             </span>
-          </div>
+          </span>
         </Link>
 
-        {/* Nav links */}
-        <div className="flex items-center gap-1">
-          {[
-            { to: '/methods', label: 'Methods', icon: BookOpen },
-            { to: '/compounds', label: 'Compounds', icon: FlaskConical },
-            { to: '/contributors', label: 'Contributors', icon: Users },
-          ].map(({ to, label, icon: Icon }) => (
-            <Link key={to} to={to}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                transition-all duration-150 no-underline
-                ${active(to)
-                  ? 'bg-cyan-500/10 text-cyan-400'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
-              <Icon size={15} />
-              {label}
-            </Link>
-          ))}
+        <div className="hidden items-center gap-1 lg:flex">
+          <NavMenu label="Library" icon={Library} items={LIBRARY}
+            active={pathname.startsWith('/method') || ['/compounds', '/compare', '/panel-builder', '/contributors'].includes(pathname)} />
+          <NavMenu label="Modules" icon={ClipboardCheck} items={MODULE_ITEMS} footer={{ to: '/modules', label: 'How the modules work' }}
+            active={pathname.startsWith('/validation') || pathname === '/modules'} />
+          <NavMenu label="Tools" icon={Calculator} items={TOOLS} active={pathname.startsWith('/tools')} />
+          <ReviewLink active={pathname === '/review'} />
 
-          <ToolsDropdown active={location.pathname.startsWith('/tools')} />
+          <div className="ml-1"><CommandPalette /></div>
+          <div className="mx-2 h-5 w-px bg-border" />
 
-          <div className="w-px h-5 bg-white/10 mx-2" />
-
-          {/* Dra. Massa */}
-          <Link to="/advisor"
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-              transition-all duration-150 no-underline border
-              ${active('/advisor')
-                ? 'bg-violet-500/15 text-violet-200 border-violet-400/40'
-                : 'text-violet-300 border-violet-400/25 bg-violet-500/10 hover:bg-violet-500/20'}`}>
-            <Sparkles size={15} />
-            Dra. Massa
+          <Link to="/advisor" className={linkCls(active('/advisor'))}>
+            <img src="/koine-mark.svg" width={17} height={17} alt="" aria-hidden="true" className="hidden size-[17px] dark:block" /><img src="/koine-icon.svg" width={17} height={17} alt="" aria-hidden="true" className="size-[17px] dark:hidden" />
+            Assistant
           </Link>
-
-          {/* New Method */}
           <Link to="/submit"
-            className="flex items-center gap-1.5 px-4 py-2 ml-1 rounded-lg text-sm font-semibold
-              bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-150
-              no-underline shadow-sm">
+            className="ml-1 flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/85">
             <Plus size={15} />
             New Method
           </Link>
+          {/* Only on pages that already support both themes. */}
+          {isThemedRoute(pathname) && <div className="ml-1"><ThemeToggle /></div>}
+        </div>
+
+        {/* Small screens: primary action + a menu with everything else. */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          <Link to="/submit" aria-label="New method"
+            className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-2 text-sm font-semibold text-primary-foreground no-underline">
+            <Plus size={15} /> <span className="hidden sm:inline">New Method</span>
+          </Link>
+          {isThemedRoute(pathname) && <ThemeToggle />}
+          <button type="button" onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen} aria-label="Menu"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground">
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <div className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border px-4 py-3 lg:hidden">
+          {([['Library', LIBRARY], ['Modules', MODULE_ITEMS], ['Tools', TOOLS]] as const).map(([title, items], i) => (
+            <div key={title}>
+              <p className={cn('label-caps mb-1 px-2.5 text-muted-foreground', i > 0 && 'mt-3')}>{title}</p>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {items.map(({ to, label, icon: Icon, badge, muted }) => to
+                  ? <Link key={label} to={to} className={linkCls(pathname === to || (to === '/methods' && pathname.startsWith('/method')))}>
+                      <Icon size={15} /> {label}
+                      {badge && <span className={cn('rounded-full px-1.5 py-px text-[10px] font-semibold',
+                        muted ? 'border border-border text-muted-foreground' : 'border border-primary/35 bg-primary/10 text-primary')}>{badge}</span>}
+                    </Link>
+                  : <span key={label} className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground/70">
+                      <Icon size={15} /> {label}
+                      <span className="rounded-full border border-border px-1.5 py-px text-[10px] font-semibold">{badge}</span>
+                    </span>)}
+              </div>
+            </div>
+          ))}
+          <Link to="/modules" className="mt-1 flex items-center gap-1 px-2.5 text-xs font-semibold text-primary no-underline">How the modules work <ArrowRight size={12} /></Link>
+          <div className="mt-3 grid gap-1 border-t border-border pt-3">
+            <Link to="/advisor" className={linkCls(active('/advisor'))}><img src="/koine-mark.svg" width={17} height={17} alt="" aria-hidden="true" className="hidden size-[17px] dark:block" /><img src="/koine-icon.svg" width={17} height={17} alt="" aria-hidden="true" className="size-[17px] dark:hidden" /> Assistant</Link>
+            <ReviewLink active={pathname === '/review'} />
+          </div>
+        </div>
+      )}
     </nav>
   )
 }

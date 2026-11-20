@@ -1,335 +1,234 @@
-import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, SlidersHorizontal, Grid3X3, List } from 'lucide-react'
-import axios from 'axios'
-import TrendingCarousel from '../components/TrendingCarousel'
-import { CompletenesBadge } from '../components/CompletenessScore'
-import ChromatogramChart from '../components/ChromatogramChart'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { LayoutGrid, SlidersHorizontal, Table2, X } from 'lucide-react'
 import SEO from '../components/SEO'
+import SearchBox from '@/components/explore/SearchBox'
+import FacetSidebar, { type FilterState } from '@/components/explore/FacetSidebar'
+import { EmptyResults, ErrorResults, ResultsCards, ResultsSkeleton, ResultsTable } from '@/components/explore/Results'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { FACETS, isCancel, searchMethods, type FacetKey, type SearchResponse } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
+const PAGE_SIZE = 48
+const SORTS = [
+  { value: 'relevance', label: 'Relevance' },
+  { value: 'completeness', label: 'Completeness' },
+  { value: 'recent', label: 'Recently added' },
+  { value: 'title', label: 'Analyte A–Z' },
+]
+type View = 'table' | 'cards'
 
-const MATRIX_CLS: Record<string, string> = {
-  plasma: 'bg-red-500/10 text-red-300 border-red-400/30',
-  serum: 'bg-orange-500/10 text-orange-300 border-orange-400/30',
-  urine: 'bg-yellow-500/10 text-yellow-300 border-yellow-400/30',
-  'whole blood': 'bg-violet-500/10 text-violet-300 border-violet-400/30',
-  'dried blood spot': 'bg-pink-500/10 text-pink-300 border-pink-400/30',
-  csf: 'bg-sky-500/10 text-sky-300 border-sky-400/30',
-  saliva: 'bg-green-500/10 text-green-300 border-green-400/30',
-  other: 'bg-white/5 text-slate-400 border-white/10',
-}
-
-const MATRIX_LABEL: Record<string, string> = { csf: 'CSF' }
-const matrixLabel = (m: string) => MATRIX_LABEL[m.toLowerCase()] || m.replace(/\b\w/g, c => c.toUpperCase())
-
-const VENDOR_CLS: Record<string, string> = {
-  'Sciex': 'bg-blue-500/10 text-blue-300 border-blue-400/30',
-  'Waters': 'bg-teal-500/10 text-teal-300 border-teal-400/30',
-  'Thermo Fisher': 'bg-orange-500/10 text-orange-300 border-orange-400/30',
-  'Agilent': 'bg-purple-500/10 text-purple-300 border-purple-400/30',
-  'Shimadzu': 'bg-rose-500/10 text-rose-300 border-rose-400/30',
-  'Bruker': 'bg-amber-500/10 text-amber-300 border-amber-400/30',
-  'other': 'bg-white/5 text-slate-400 border-white/10',
-}
-
-const MATRIX_PILLS = ['plasma', 'serum', 'urine', 'whole blood', 'dried blood spot', 'csf']
+/** The URL is the single source of truth for search state, so any result
+ *  set can be bookmarked or pasted into a message to a colleague. */
+const readState = (sp: URLSearchParams): FilterState => ({
+  facets: Object.fromEntries(
+    FACETS.map(f => [f.key, sp.getAll(f.key).map(v => v.toLowerCase())]),
+  ) as Record<FacetKey, string[]>,
+  mz: sp.get('mz') ?? '',
+  mzTol: sp.get('tol') ?? '0.5',
+  verified: sp.get('verified') === '1',
+  derivatized: sp.get('derivatized') === '1',
+})
 
 export default function Methods() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [methods, setMethods] = useState<any[]>([])
-  const [search, setSearch] = useState(searchParams.get('q') || '')
+  const [sp, setSp] = useSearchParams()
+  const urlQuery = sp.get('q') ?? ''
+  const sort = sp.get('sort') ?? 'relevance'
+  const view: View = sp.get('view') === 'cards' ? 'cards' : 'table'
+  const state = useMemo(() => readState(sp), [sp])
+
+  const [text, setText] = useState(urlQuery)
+  const [count, setCount] = useState(PAGE_SIZE)
+  const [data, setData] = useState<SearchResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [matrixFilter, setMatrixFilter] = useState('')
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [samplePrepFilter, setSamplePrepFilter] = useState('')
-  const [vendorFilter, setVendorFilter] = useState('')
-  const [lloqFilter, setLloqFilter] = useState('')
-  const [runtimeFilter, setRuntimeFilter] = useState('')
-  const [page, setPage] = useState(20)
-  const searchRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState(false)
+  const [retry, setRetry] = useState(0)
 
+  const navigate = useNavigate()
+  const [compareIds, setCompareIds] = useState<number[]>([])
+
+  const update = useCallback((mutate: (p: URLSearchParams) => void) => {
+    setSp(prev => { const next = new URLSearchParams(prev); mutate(next); return next }, { replace: true })
+    setCount(PAGE_SIZE)
+  }, [setSp])
+
+  // Typing → URL (debounced so each keystroke isn't a history entry or request).
   useEffect(() => {
-    axios.get(`${API}/methods/summary`)
-      .then(res => setMethods(res.data))
-      .finally(() => setLoading(false))
-  }, [])
+    const q = text.trim()
+    if (q === urlQuery) return
+    const timer = setTimeout(() => update(p => (q ? p.set('q', q) : p.delete('q'))), 180)
+    return () => clearTimeout(timer)
+  }, [text, urlQuery, update])
+  // URL → input (back/forward, links from Home or the command palette).
+  useEffect(() => { setText(t => (t.trim() === urlQuery ? t : urlQuery)) }, [urlQuery])
 
-  // Filter methods
-  const filtered = methods.filter(m => {
-    const q = search.toLowerCase()
-    const matchSearch = !q || [m.analyte, m.title, m.matrix, m.instrument_manufacturer,
-      m.column_name, m.clinical_application].some(f => f?.toLowerCase().includes(q))
-    const matchMatrix = !matrixFilter || m.matrix?.toLowerCase() === matrixFilter
-    const matchVendor = !vendorFilter || m.instrument_manufacturer?.toLowerCase() === vendorFilter.toLowerCase()
-    const matchPrep = !samplePrepFilter || m.sample_prep_method?.toLowerCase().includes(samplePrepFilter.toLowerCase())
-    const matchLloq = !lloqFilter || (m.lloq && m.lloq <= parseFloat(lloqFilter))
-    return matchSearch && matchMatrix && matchVendor && matchPrep && matchLloq
+  const filterKey = useMemo(() => {
+    const p = new URLSearchParams(sp); p.delete('view'); p.sort(); return p.toString()
+  }, [sp])
+
+  const firstLoad = useRef(true)
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (urlQuery) params.set('q', urlQuery)
+    FACETS.forEach(f => state.facets[f.key].forEach(v => params.append(f.key, v)))
+    if (state.mz && !Number.isNaN(Number(state.mz))) { params.set('mz', state.mz); params.set('mz_tol', state.mzTol) }
+    if (state.verified) params.set('verified', 'true')
+    if (state.derivatized) params.set('derivatized', 'true')
+    params.set('sort', sort)
+    params.set('limit', String(count))
+    if (view === 'cards') params.set('thumbnails', 'true')
+
+    const ctrl = new AbortController()
+    setLoading(true)
+    const timer = setTimeout(() => {
+      searchMethods(params, ctrl.signal)
+        .then(res => { setData(res); setError(false); setLoading(false) })
+        .catch(err => { if (!isCancel(err)) { setError(true); setLoading(false) } })
+    }, firstLoad.current ? 0 : 120)
+    firstLoad.current = false
+    return () => { clearTimeout(timer); ctrl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, count, view, retry])
+
+  const toggleFacet = (facet: FacetKey, value: string) => update(p => {
+    const current = p.getAll(facet).map(v => v.toLowerCase())
+    p.delete(facet)
+    ;(current.includes(value) ? current.filter(v => v !== value) : [...current, value]).forEach(v => p.append(facet, v))
   })
+  const setFlags = (patch: Partial<Pick<FilterState, 'mz' | 'mzTol' | 'verified' | 'derivatized'>>) => update(p => {
+    if (patch.mz !== undefined) patch.mz ? p.set('mz', patch.mz) : p.delete('mz')
+    if (patch.mzTol !== undefined) patch.mzTol === '0.5' ? p.delete('tol') : p.set('tol', patch.mzTol)
+    if (patch.verified !== undefined) patch.verified ? p.set('verified', '1') : p.delete('verified')
+    if (patch.derivatized !== undefined) patch.derivatized ? p.set('derivatized', '1') : p.delete('derivatized')
+  })
+  const clearAll = () => {
+    setText('')
+    update(p => { [...p.keys()].forEach(k => { if (k !== 'view' && k !== 'sort') p.delete(k) }) })
+  }
+
+  // Active filters as removable chips.
+  const chips: { key: string; label: string; remove: () => void }[] = []
+  FACETS.forEach(f => state.facets[f.key].forEach(v => chips.push({
+    key: `${f.key}:${v}`,
+    label: data?.facets[f.key]?.find(x => x.value === v)?.label ?? v,
+    remove: () => toggleFacet(f.key, v),
+  })))
+  if (state.mz) chips.push({ key: 'mz', label: `m/z ${state.mz} ± ${state.mzTol}`, remove: () => setFlags({ mz: '' }) })
+  if (state.verified) chips.push({ key: 'verified', label: 'Verified', remove: () => setFlags({ verified: false }) })
+  if (state.derivatized) chips.push({ key: 'derivatized', label: 'Derivatized', remove: () => setFlags({ derivatized: false }) })
+
+  const toggleCompare = (id: number) => setCompareIds(prev =>
+    prev.includes(id) ? prev.filter(i => i !== id) : prev.length < 4 ? [...prev, id] : prev)
+
+  const openComparator = () => navigate(`/compare?ids=${compareIds.join(',')}`)
+
+  const sidebar = <FacetSidebar state={state} facets={data?.facets} onToggle={toggleFacet} onSet={setFlags} />
+  const items = data?.items ?? []
+  const remaining = data ? data.total - items.length : 0
 
   return (
-    <>
-    <SEO title="Browse Clinical LC-MS/MS Methods"
-      description="Search and filter clinical LC-MS/MS methods by matrix, vendor, sample prep, and LLOQ across the MetaboLC repository." />
-    <style>{`
-      .methods-page { background: #060d1a; min-height: 100vh; }
-      .methods-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
-      .methods-page .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
-      .methods-page .text-slate-800, .methods-page .text-slate-900 { color: #e2e8f0 !important; }
-      .methods-page .text-slate-600 { color: #94a3b8 !important; }
-      .methods-page .text-slate-500 { color: #64748b !important; }
-      .methods-page .text-slate-400 { color: #475569 !important; }
-      .methods-page .bg-slate-50 { background: rgba(255,255,255,0.03) !important; }
-      .methods-page .bg-slate-100 { background: rgba(255,255,255,0.05) !important; }
-      .methods-page .hover\\:bg-slate-50:hover { background: rgba(255,255,255,0.04) !important; }
-      .methods-page .hover\\:text-slate-600:hover { color: #94a3b8 !important; }
-      .methods-page input { color: #e2e8f0 !important; }
-      .methods-page .hover\:-translate-y-1:hover { border-color: rgba(56,189,248,0.3) !important; box-shadow: 0 4px 20px rgba(56,189,248,0.08) !important; }
-    `}</style>
-    <div style={{maxWidth:'1280px', margin:'0 auto', padding:'1.5rem'}} className="methods-page space-y-4 pb-12">
+    <div className="space-y-4 pb-16">
+      <SEO title="Browse Clinical LC-MS/MS Methods"
+        description="Search clinical LC-MS/MS methods by analyte, matrix, column, mobile phase and MRM transition across the Koiné repository." />
 
-      {/* Search bar */}
-      <div className="flex gap-2">
-        <div className="flex-1 relative">
-          <div className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-slate-200
-            rounded-xl hover:border-indigo-400 focus-within:border-indigo-500
-            focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-sm">
-            <Search size={18} className="text-indigo-400 shrink-0" />
-            <input
-              ref={searchRef}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search analytes, matrix or m/z (e.g. 304.2)…"
-              className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
-            />
-            {search && (
-              <button onClick={() => setSearch('')}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Methods</h1>
+          <p className="text-sm text-muted-foreground">
+            {data
+              ? <><span className="num text-foreground">{data.total}</span> of <span className="num">{data.catalogue_total}</span> methods</>
+              : 'Loading the library…'}
+          </p>
+        </div>
+      </header>
+
+      <SearchBox
+        value={text}
+        onChange={setText}
+        onPickCompound={setText}
+        onPickFilter={(facet, value) => { setText(''); toggleFacet(facet, value) }}
+        onPickMz={mz => { setText(''); setFlags({ mz: String(mz) }) }}
+      />
+
+      <div className="flex gap-8">
+        <aside className="hidden w-60 shrink-0 lg:block" aria-label="Filters">{sidebar}</aside>
+
+        <section className="min-w-0 flex-1 space-y-3" aria-live="polite">
+          <div className="flex flex-wrap items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="lg:hidden">
+                  <SlidersHorizontal /> Filters{chips.length > 0 && <span className="num">· {chips.length}</span>}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 overflow-y-auto">
+                <SheetHeader><SheetTitle>Filters</SheetTitle></SheetHeader>
+                <div className="px-4 pb-6">{sidebar}</div>
+              </SheetContent>
+            </Sheet>
+
+            {chips.map(c => (
+              <button key={c.key} type="button" onClick={c.remove} title="Remove filter"
+                className="inline-flex h-7 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 pl-2.5 pr-1.5 text-xs font-medium text-foreground hover:bg-primary/20">
+                {c.label}<X size={12} className="text-muted-foreground" />
+              </button>
+            ))}
+            {(chips.length > 0 || urlQuery) && (
+              <button type="button" onClick={clearAll} className="px-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+                Clear all
+              </button>
             )}
+
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                Sort
+                <select value={sort} onChange={e => update(p => p.set('sort', e.target.value))}
+                  className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:border-ring">
+                  {SORTS.map(s => <option key={s.value} value={s.value} className="bg-popover">{s.label}</option>)}
+                </select>
+              </label>
+              <div className="flex overflow-hidden rounded-lg border border-input" role="group" aria-label="Result layout">
+                {([['table', Table2, 'Table'], ['cards', LayoutGrid, 'Cards']] as const).map(([v, Icon, label]) => (
+                  <button key={v} type="button" aria-pressed={view === v} title={`${label} view`}
+                    onClick={() => setSp(prev => { const n = new URLSearchParams(prev); v === 'table' ? n.delete('view') : n.set('view', v); return n }, { replace: true })}
+                    className={cn('flex h-8 w-9 items-center justify-center transition-colors',
+                      view === v ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60')}>
+                    <Icon size={15} /><span className="sr-only">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* View toggle */}
-        <div className="flex border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-          <button onClick={() => setViewMode('grid')}
-            className={`px-3 py-2 flex items-center gap-1 text-xs transition-all
-              ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Grid3X3 size={13} /> Grid
-          </button>
-          <button onClick={() => setViewMode('list')}
-            className={`px-3 py-2 flex items-center gap-1 text-xs border-l border-slate-200 transition-all
-              ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <List size={13} /> List
-          </button>
-        </div>
-      </div>
+          {error ? <ErrorResults onRetry={() => { setError(false); setRetry(r => r + 1) }} />
+            : !data ? <ResultsSkeleton view={view} />
+            : items.length === 0 ? <EmptyResults query={urlQuery} hasFilters={chips.length > 0} onClear={clearAll} />
+            : view === 'cards'
+              ? <ResultsCards items={items} compareIds={compareIds} onToggleCompare={toggleCompare} stale={loading} />
+              : <ResultsTable items={items} compareIds={compareIds} onToggleCompare={toggleCompare} stale={loading} />}
 
-      {/* Trending - only when no filters active */}
-      {!search && !matrixFilter && <TrendingCarousel />}
-
-      {/* Advanced search toggle */}
-      <div className="flex items-center justify-between">
-        <button onClick={() => setShowAdvanced(s => !s)}
-          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
-            border transition-all ${showAdvanced
-              ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-          <SlidersHorizontal size={12} />
-          Advanced filters
-          {(vendorFilter || samplePrepFilter || lloqFilter) && (
-            <span className="bg-indigo-600 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">
-              {[vendorFilter, samplePrepFilter, lloqFilter].filter(Boolean).length}
-            </span>
+          {!error && remaining > 0 && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" disabled={loading} onClick={() => setCount(c => c + PAGE_SIZE)}>
+                {loading ? 'Loading…' : <>Show {Math.min(PAGE_SIZE, remaining)} more <span className="num text-muted-foreground">({remaining} left)</span></>}
+              </Button>
+            </div>
           )}
-        </button>
-        {(vendorFilter || samplePrepFilter || lloqFilter || matrixFilter) && (
-          <button onClick={() => {
-            setVendorFilter(''); setSamplePrepFilter('');
-            setLloqFilter(''); setMatrixFilter('')
-          }}
-            className="text-xs text-red-500 hover:text-red-700 transition-colors">
-            Clear all filters
+        </section>
+      </div>
+
+      {compareIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-border bg-popover px-4 py-2.5 text-popover-foreground shadow-xl">
+          <span className="text-sm"><span className="num font-semibold">{compareIds.length}</span> selected</span>
+          <Button disabled={compareIds.length < 2} onClick={openComparator}>
+            {compareIds.length < 2 ? 'Select one more' : 'Compare'}
+          </Button>
+          <button type="button" onClick={() => setCompareIds([])} aria-label="Clear selection" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground">
+            <X size={15} />
           </button>
-        )}
-      </div>
-
-      {showAdvanced && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* Vendor */}
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Instrument</label>
-            <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
-                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
-              <option value="">Any vendor</option>
-              {['Sciex', 'Waters', 'Thermo Fisher', 'Agilent', 'Shimadzu', 'Bruker'].map(v => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sample prep */}
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Sample prep</label>
-            <select value={samplePrepFilter} onChange={e => setSamplePrepFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
-                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
-              <option value="">Any prep</option>
-              {['Protein precipitation', 'SPE', 'LLE', 'Dilute and shoot', 'Supported LLE', 'DBS extraction'].map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* LLOQ */}
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Max LLOQ (ng/mL)</label>
-            <select value={lloqFilter} onChange={e => setLloqFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
-                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
-              <option value="">Any LLOQ</option>
-              <option value="0.01">≤ 0.01 ng/mL</option>
-              <option value="0.1">≤ 0.1 ng/mL</option>
-              <option value="1">≤ 1 ng/mL</option>
-              <option value="10">≤ 10 ng/mL</option>
-              <option value="100">≤ 100 ng/mL</option>
-            </select>
-          </div>
-
-          {/* Matrix */}
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Matrix</label>
-            <select value={matrixFilter} onChange={e => setMatrixFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg
-                bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700">
-              <option value="">Any matrix</option>
-              {['plasma', 'serum', 'urine', 'whole blood', 'dried blood spot', 'csf', 'saliva'].map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
-
-      {/* Matrix filter pills */}
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setMatrixFilter('')}
-          className={`text-xs px-3 py-1 rounded-full border font-medium transition-all
-            ${!matrixFilter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
-          All ({methods.length})
-        </button>
-        {MATRIX_PILLS.map(m => {
-          const count = methods.filter(x => x.matrix?.toLowerCase() === m).length
-          return (
-            <button key={m} onClick={() => setMatrixFilter(matrixFilter === m ? '' : m)}
-              className={`text-xs px-3 py-1 rounded-full border font-medium transition-all
-                ${matrixFilter === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
-              {matrixLabel(m)} ({count})
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Results */}
-      {loading ? (
-        <div className="text-center py-16 text-slate-400 text-sm">Loading methods…</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-400 text-sm">No methods found</div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.slice(0, page).map(m => {
-            const matrixKey = (m.matrix || 'other').toLowerCase()
-            const matrixCls = MATRIX_CLS[matrixKey] || MATRIX_CLS.other
-            const vendorCls = VENDOR_CLS[m.instrument_manufacturer] || VENDOR_CLS.other
-            return (
-              <Link key={m.id} to={`/method/${m.id}`} style={{textDecoration:'none'}}>
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden
-                  hover:-translate-y-1 hover:shadow-lg hover:border-indigo-200
-                  transition-all duration-200 flex flex-col h-full group shadow-sm">
-
-                  <div className="p-3 flex flex-col flex-1">
-                    {/* Badges */}
-                    <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md border ${matrixCls}`}>
-                        {m.matrix}
-                      </span>
-                      {m.status === 'verified' && (
-                        <span className="text-xs text-green-600 font-medium">✓</span>
-                      )}
-                    </div>
-                    {/* Title */}
-                    <p className="text-sm font-semibold text-slate-900 mb-1 leading-snug tracking-tight flex-1">
-                      {m.title?.length > 60 ? m.title.slice(0, 60) + '…' : m.title}
-                    </p>
-                    {/* Analytes */}
-                    <p className="text-xs text-slate-400 mb-2 truncate">
-                      {m.analyte?.split(',').slice(0, 3).join(', ')}
-                      {m.analyte?.split(',').length > 3 ? '…' : ''}
-                    </p>
-
-                    {/* Cached chromatogram */}
-                    {m.chromatogram_svg && (
-                      <div className="rounded-lg overflow-hidden bg-slate-50 mb-2"
-                        style={{height:'40px', lineHeight:0}}
-                        dangerouslySetInnerHTML={{__html: m.chromatogram_svg}} />
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs px-1.5 py-0.5 rounded-md border font-medium ${vendorCls}`}>
-                        {m.instrument_manufacturer}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {m.completeness_score !== undefined && (
-                          <CompletenesBadge score={m.completeness_score} />
-                        )}
-                        <span className="text-xs text-slate-400 font-mono">
-                          {m.mrm_count || 0} MRM
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      ) : (
-        /* List view */
-        <div className="space-y-2">
-          {filtered.map(m => {
-            const matrixKey = (m.matrix || 'other').toLowerCase()
-            const matrixCls = MATRIX_CLS[matrixKey] || MATRIX_CLS.other
-            const vendorCls = VENDOR_CLS[m.instrument_manufacturer] || VENDOR_CLS.other
-            return (
-              <Link key={m.id} to={`/method/${m.id}`} style={{textDecoration:'none'}}>
-                <div className="bg-white border border-slate-200 rounded-xl px-4 py-3
-                  hover:border-indigo-200 hover:shadow-sm transition-all flex items-center gap-4">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-md border shrink-0 ${matrixCls}`}>
-                    {m.matrix}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{m.title}</p>
-                    <p className="text-xs text-slate-400 truncate">{m.analyte}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-md border font-medium shrink-0 ${vendorCls}`}>
-                    {m.instrument_manufacturer}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono shrink-0">
-                    {m.mrm_count || 0} MRM
-                  </span>
-                  {m.status === 'verified' && (
-                    <span className="text-xs text-green-600 shrink-0">✓</span>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
         </div>
       )}
     </div>
-    </>
   )
 }

@@ -1,0 +1,158 @@
+{
+  "id": "clsi-c62a",
+  "version": "1.0.0",
+  "title": "CLSI C62-A (1st edition, 2014) — as summarised by Lynch, Clin Chem 2016",
+  "source": {
+    "citation": "Lynch KL. CLSI C62-A: A New Standard for Clinical Mass Spectrometry. Clin Chem. 2016;62(1):24-29. doi:10.1373/clinchem.2015.238626 (Table 1)",
+    "document": "CLSI C62-A, Liquid Chromatography-Mass Spectrometry Methods; Approved Guideline, 1st edition (October 2014)",
+    "status": "superseded",
+    "caveats": [
+      "Secondary source: these criteria come from a published summary table, not from the CLSI document itself.",
+      "C62-A was replaced by the 2nd edition (June 2022) and the 3rd edition (June 2026). Check every criterion against the edition your laboratory holds before relying on it.",
+      "C62-A leaves several acceptance limits to the laboratory (trueness, QC, matrix effect within total allowable error). Those are marked lab_defined and have no default value on purpose."
+    ]
+  },
+  "terminology": {
+    "LLMI": "Lower limit of the measuring interval (formerly LLOQ)",
+    "ULMI": "Upper limit of the measuring interval (formerly ULOQ)",
+    "AMI": "Analytical measurement interval",
+    "RMP": "Reference measurement procedure",
+    "note": "C62-A calls 'verification' what FDA and EMA call 'validation'."
+  },
+  "experiments": [
+    {
+      "key": "trueness",
+      "name": "Accuracy / trueness",
+      "references": ["CLSI EP32", "CLSI EP09", "CLSI EP15", "CLSI C50"],
+      "design": {
+        "approaches_required_min": 2,
+        "approaches": [
+          {"key": "rmp_comparison", "description": "Comparison to a reference measurement procedure", "samples_min": 40, "sample_type": "preferably patient samples", "coverage": "whole AMI"},
+          {"key": "crm", "description": "Analysis of commutable certified reference materials"},
+          {"key": "spike_recovery", "description": "Spike and recovery analysis"}
+        ],
+        "approaches_rule": "more than one approach (the source says '>1')"
+      },
+      "criteria": [
+        {"metric": "bias", "lab_defined": true, "value": null, "basis": "biological variation, clinical guidelines from expert groups, local or regional regulatory requirements"}
+      ]
+    },
+    {
+      "key": "imprecision",
+      "name": "Imprecision",
+      "references": ["CLSI EP05"],
+      "design": {
+        "determinations_per_level_min": 20,
+        "levels": [
+          {"key": "near_llmi", "definition": "110% of the LLMI"},
+          {"key": "mid", "definition": "(LLMI + ULMI) / 2"},
+          {"key": "near_ulmi", "definition": "90% of the ULMI"},
+          {"key": "decision_points", "definition": "at and within 25% of any medical decision point", "optional": true}
+        ]
+      },
+      "criteria": [
+        {"metric": "cv_percent", "operator": "<", "value": 15, "scope": "all levels except LLMI"},
+        {"metric": "cv_percent", "operator": "<", "value": 20, "scope": "LLMI"},
+        {"metric": "cv_percent", "lab_defined": true, "value": null, "basis": "goals may be tightened from total allowable error, biological variation, expert guidelines or regulation"}
+      ]
+    },
+    {
+      "key": "sensitivity",
+      "name": "Sensitivity (LLMI)",
+      "references": ["CLSI EP17"],
+      "design": {"replicates_min": 40, "samples": "3-5 different samples close to the predetermined limit", "runs_min": 5},
+      "criteria": [
+        {"metric": "signal_to_noise", "operator": ">", "value": 20, "scope": "LLMI"},
+        {"metric": "cv_percent", "operator": "<", "value": 20, "scope": "LLMI"},
+        {"metric": "abs_bias_percent", "operator": "<=", "value": 15, "scope": "LLMI", "note": "source wording: 'trueness within 15%'"}
+      ]
+    },
+    {
+      "key": "matrix_effect",
+      "name": "Matrix effects",
+      "references": ["CLSI EP07", "CLSI EP21", "CLSI C50"],
+      "design": {"native_matrix_samples_min": 5, "comparison": "peak area of analyte spiked post-extraction vs analyte in neat solution", "levels": "all calibration points"},
+      "criteria": [
+        {"metric": "cv_percent_due_to_matrix", "operator": "<", "value": 15},
+        {"metric": "matrix_effect", "lab_defined": true, "value": null, "basis": "evaluate within the total allowable error for the analyte"}
+      ]
+    },
+    {
+      "key": "specificity",
+      "name": "Specificity / selectivity / interferences",
+      "references": ["CLSI EP07"],
+      "design": {"description": "High concentration of each potential interferent in matrix (preferably a patient sample), with and without analyte"},
+      "criteria": [
+        {"metric": "interference_effect", "description": "Interferent must not alter the calculated concentration", "lab_defined": true, "value": null},
+        {"metric": "ion_ratio_deviation_percent", "operator": "<=", "value": 20, "applies_if": "qualifier signal > 50% of quantifier signal", "relative_to": "mean ion ratio of the calibration standards"}
+      ]
+    },
+    {
+      "key": "carryover",
+      "name": "Carry-over",
+      "references": ["CLSI EP10"],
+      "design": {"description": "Extracted negative samples injected after samples with increasing analyte concentrations"},
+      "criteria": [
+        {"metric": "carryover_limit", "description": "Highest concentration that does not carry over to a negative sample at >= 25% of the LLMI", "operator": "<", "value": 25, "unit": "% of LLMI", "output": "a concentration limit, not pass/fail"}
+      ]
+    },
+    {
+      "key": "stability",
+      "name": "Stability",
+      "references": ["FDA Bioanalytical Method Validation (recommended stability experiments)"],
+      "design": {"materials": ["samples", "sample extracts", "calibrators", "QC materials"]},
+      "criteria": [
+        {"metric": "stability", "lab_defined": true, "value": null, "note": "C62-A states no performance specification"}
+      ]
+    },
+    {
+      "key": "dilution",
+      "name": "Dilutions",
+      "references": ["CLSI EP15"],
+      "design": {"replicates_per_dilution_min": 5, "diluent": "analyte-free native matrix preferred", "concentration": "> 3x LLMI"},
+      "criteria": [
+        {"metric": "mean_recovery_percent", "target": 100, "tolerance_sd": 15, "note": "source: 'mean recoveries of 100% (SD 15%)'"},
+        {"metric": "cv_percent", "operator": "<", "value": 15}
+      ]
+    },
+    {
+      "key": "recovery",
+      "name": "Recovery",
+      "design": {
+        "levels": ["low", "medium", "high"],
+        "comparison": "extracted samples vs unextracted standards representing 100% recovery",
+        "endogenous_analytes": "standard additions when the matrix is not blank",
+        "include": ["proficiency testing samples", "QC", "external reference samples"]
+      },
+      "criteria": [
+        {"metric": "recovery", "lab_defined": true, "value": null, "description": "Analyte and IS recovery consistent, precise and reproducible"}
+      ]
+    },
+    {
+      "key": "calibration",
+      "name": "Calibration standards",
+      "design": {"blank": true, "zero": true, "standards": "6-8", "matrix": "same biological matrix as the samples", "placement": ["LLMI", "ULMI", "medically relevant decision points within the AMI"]},
+      "criteria": [
+        {"metric": "abs_bias_percent", "operator": "<=", "value": 15, "scope": "all calibrators above the LLMI"},
+        {"metric": "r_squared", "operator": ">", "value": 0.995}
+      ]
+    },
+    {
+      "key": "linearity",
+      "name": "Linearity",
+      "references": ["CLSI EP06"],
+      "design": {"concentrations": "9-11", "replicates_each": "2-4", "statistics": "polynomial regression", "avoid": "serial dilutions"},
+      "criteria": [
+        {"metric": "nonlinearity", "lab_defined": true, "value": null, "description": "Any detected nonlinearity assessed for clinical significance"}
+      ]
+    },
+    {
+      "key": "routine_qc",
+      "name": "QC (samples and frequency)",
+      "design": {"levels": [{"key": "low", "definition": "around 3x LLMI"}, {"key": "mid", "definition": "midrange"}, {"key": "high", "definition": "near the ULMI"}], "replicates": 2, "frequency": ">= 5% of patient samples per batch"},
+      "criteria": [
+        {"metric": "qc_acceptance", "lab_defined": true, "value": null}
+      ]
+    }
+  ]
+}

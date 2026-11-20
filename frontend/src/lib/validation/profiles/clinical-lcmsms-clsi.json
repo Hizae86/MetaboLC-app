@@ -1,0 +1,219 @@
+{
+  "id": "clinical-lcmsms-clsi",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": "Clinical LC-MS/MS laboratory-developed test — CLSI-based profile",
+  "scope": "Full validation of a quantitative LC-MS/MS laboratory-developed test (LDT / IVDR Art. 5(5) in-house device). Not for verification of CE-IVD kits.",
+  "how_to_read": {
+    "evidence": {
+      "summary_c62a": "Criterion from CLSI C62-A (2014) as summarised in Lynch, Clin Chem 2016, Table 1. C62 has since had a 2nd (2022) and 3rd (June 2026) edition whose text was not available.",
+      "clsi_public": "Study design taken from CLSI's own public descriptions of the EP document or from published summaries of it.",
+      "accreditation": "Requirement from an accreditation checklist as quoted in a peer-reviewed article.",
+      "practice": "Widely used state-of-the-art criterion reported in peer-reviewed reviews, not a CLSI requirement.",
+      "lab_defined": "CLSI leaves the limit to the laboratory (biological variation, total allowable error, clinical need). No default is given on purpose."
+    },
+    "rule": "Acceptance criteria must be fixed in the validation plan before experiments start and not changed after seeing results (Stone & van der Gugten 2023)."
+  },
+  "sources": {
+    "lynch2016": "Lynch KL. CLSI C62-A: A New Standard for Clinical Mass Spectrometry. Clin Chem 2016;62:24-29. doi:10.1373/clinchem.2015.238626",
+    "stone2023": "Stone JA, van der Gugten JG. Quantitative tandem mass spectrometry in the clinical laboratory: regulation and opportunity for validation of laboratory developed tests. J Mass Spectrom Adv Clin Lab 2023;28:82-90. doi:10.1016/j.jmsacl.2023.03.001",
+    "rappold2022": "Rappold BA. Review of the use of LC-MS/MS in clinical laboratories: Part II - Operations. Ann Lab Med 2022;42:531-557. doi:10.3343/alm.2022.42.5.531",
+    "clsi_ep05": "CLSI EP05-A3 (2014) Evaluation of Precision of Quantitative Measurement Procedures - public description (clsi.org)",
+    "clsi_ep06": "CLSI EP06 2nd ed. (2020) Evaluation of Linearity - public description (clsi.org)",
+    "clsi_ep07": "CLSI EP07 3rd ed. (2018) Interference Testing in Clinical Chemistry - public description (clsi.org)",
+    "clsi_ep09": "CLSI EP09c 3rd ed. (2018) Measurement Procedure Comparison and Bias Estimation Using Patient Samples - public description and summaries",
+    "clsi_ep17": "CLSI EP17-A2 (2012) Evaluation of Detection Capability - published summaries",
+    "cap_chm18825": "CAP Chemistry/Toxicology checklist 2021, CHM.18825, as quoted in stone2023",
+    "c62ed2_practice": "Published methods validated 'according to CLSI C62-Ed2' (e.g. J Clin Med 2024;13:7056, testosterone)"
+  },
+  "experiments": [
+    {
+      "key": "validation_plan",
+      "name": "Validation plan (before any experiment)",
+      "requirements": [
+        {"text": "Analyte-specific plan listing every experiment with its acceptance criteria, approved before validation starts; criteria not adjusted after results", "evidence": "practice", "source": "stone2023"},
+        {"text": "Outliers may not be excluded without documented justification", "evidence": "practice", "source": "stone2023"}
+      ]
+    },
+    {
+      "key": "imprecision",
+      "name": "Imprecision (repeatability and within-laboratory)",
+      "design": {
+        "reference_design": {"days": 20, "runs_per_day": 2, "replicates_per_run": 2, "evidence": "clsi_public", "source": "clsi_ep05", "note": "EP05 '20 x 2 x 2'; EP05 is addressed to developers, which includes laboratories developing an LDT"},
+        "c62a_levels": {"determinations": 20, "levels": ["110% of LLMI", "(LLMI+ULMI)/2", "90% of ULMI", "at and within 25% of medical decision points"], "evidence": "summary_c62a", "source": "lynch2016"},
+        "practice_notes": [
+          {"text": "At least 20 days; 5-day studies underestimate imprecision", "evidence": "practice", "source": "stone2023"},
+          {"text": "Sample preparation by the several analysts who will run the test", "evidence": "practice", "source": "stone2023"}
+        ],
+        "statistics": "Nested ANOVA (day / run / replicate) to separate repeatability from within-laboratory precision"
+      },
+      "criteria": [
+        {"metric": "cv_percent", "operator": "<", "value": 15, "scope": "all levels except LLMI", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "cv_percent", "operator": "<", "value": 20, "scope": "LLMI", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "cv_percent", "lab_defined": true, "value": null, "note": "May be tightened from biological variation or total allowable error", "evidence": "lab_defined", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "trueness",
+      "name": "Trueness / accuracy",
+      "design": {
+        "approaches_min": 2,
+        "hierarchy": [
+          "Comparison with a higher-order reference measurement procedure",
+          "Materials with assigned values: JCTLM-listed CRMs, or EQA/PT material with RMP-assigned targets",
+          "Spike and recovery (last resort; second source of standard, second analyst)"
+        ],
+        "coverage": "Across the measuring interval; at minimum LLMI, ULMI and clinically relevant levels",
+        "evidence": "summary_c62a + practice",
+        "source": ["lynch2016", "stone2023"]
+      },
+      "criteria": [
+        {"metric": "bias_percent", "lab_defined": true, "value": null, "basis": "biological variation, expert-group guidelines, local regulation", "evidence": "lab_defined", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "method_comparison",
+      "name": "Method comparison with patient samples",
+      "design": {
+        "samples_min": 40,
+        "coverage": "Span the common measuring interval, including medical decision points; include samples from relevant disease states",
+        "statistics": ["Deming or Passing-Bablok regression", "difference (Bland-Altman) plot", "bias with confidence interval at medical decision points"],
+        "comparator_advice": "Prefer another LC-MS/MS method; immunoassay comparisons may not assess accuracy",
+        "outliers": "Re-analyse outliers with both methods; they may reveal matrix effects or interferences",
+        "evidence": "clsi_public + practice",
+        "source": ["clsi_ep09", "stone2023"]
+      },
+      "criteria": [
+        {"metric": "bias_at_decision_points", "lab_defined": true, "value": null, "evidence": "lab_defined", "source": "clsi_ep09"}
+      ]
+    },
+    {
+      "key": "detection_capability",
+      "name": "LLMI / LoQ (and LoB, LoD if claimed)",
+      "design": {
+        "llmi": {"replicates_min": 40, "samples": "3-5 samples near the predetermined limit", "runs_min": 5, "evidence": "summary_c62a", "source": "lynch2016"},
+        "lob": {"blank_replicates_establish": 60, "estimators": ["parametric: mean + 1.645 SD", "non-parametric: 95th percentile (preferred when blanks give no peak)"], "evidence": "clsi_public", "source": "clsi_ep17"},
+        "lod": {"formula": "LoB + 1.645 x SD of low-level samples", "evidence": "clsi_public", "source": "clsi_ep17"},
+        "practice_note": {"text": "In LC-MS/MS the LoB is often not meaningful; LoD is commonly taken as equal to the LLOQ", "evidence": "practice", "source": "rappold2022"}
+      },
+      "criteria": [
+        {"metric": "cv_percent", "operator": "<", "value": 20, "scope": "LLMI", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "abs_bias_percent", "operator": "<=", "value": 15, "scope": "LLMI", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "signal_to_noise", "operator": ">", "value": 20, "scope": "LLMI", "evidence": "summary_c62a", "source": "lynch2016", "note": "Rappold 2022 advises against S/N as a validation metric because it is software-dependent"}
+      ]
+    },
+    {
+      "key": "calibration",
+      "name": "Calibration",
+      "design": {"blank": true, "zero": true, "standards": "6-8", "matrix": "same biological matrix as the samples", "placement": ["LLMI", "ULMI", "medical decision points"], "evidence": "summary_c62a", "source": "lynch2016"},
+      "criteria": [
+        {"metric": "abs_bias_percent", "operator": "<=", "value": 15, "scope": "every calibrator above the LLMI", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "abs_bias_percent", "operator": "<=", "value": 20, "scope": "LLMI calibrator", "evidence": "practice", "source": "rappold2022"},
+        {"metric": "r_squared", "operator": ">", "value": 0.995, "evidence": "summary_c62a", "source": "lynch2016"}
+      ],
+      "note": "C62-A applies the bias limit to all calibrators above the LLMI; FDA/EMA/ICH M10 accept 75%."
+    },
+    {
+      "key": "linearity",
+      "name": "Linearity / measuring interval",
+      "design": {
+        "statistics": "First-order (straight-line) weighted least-squares fit; deviation from linearity compared with an allowable deviation (ADL). Second- and third-order polynomials are no longer required.",
+        "evidence": "clsi_public",
+        "source": "clsi_ep06",
+        "superseded": "C62-A (via EP06-A) used polynomial regression with 9-11 levels x 2-4 replicates (lynch2016)",
+        "avoid": "serial dilutions (lynch2016)"
+      },
+      "criteria": [
+        {"metric": "deviation_from_linearity", "lab_defined": true, "value": null, "note": "EP06 requires the laboratory to set the allowable deviation from linearity", "evidence": "lab_defined", "source": "clsi_ep06"}
+      ]
+    },
+    {
+      "key": "matrix_effect",
+      "name": "Matrix effect",
+      "design": {
+        "c62a": {"native_matrix_samples_min": 5, "comparison": "post-extraction spike vs neat solution", "levels": "all calibration points", "evidence": "summary_c62a", "source": "lynch2016"},
+        "cap": {"native_matrix_sources_min": 10, "evidence": "accreditation", "source": "cap_chm18825"},
+        "development_tool": "Post-column infusion during development (qualitative, no pass/fail)",
+        "statistics": "Matuszewski: matrix effect, recovery and process efficiency; IS-normalised matrix factor"
+      },
+      "criteria": [
+        {"metric": "cv_percent_due_to_matrix", "operator": "<", "value": 15, "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "mean_matrix_effect_percent", "operator": "<=", "value": 25, "absolute": true, "consequence_if_failed": "data showing that accuracy is not affected are required", "evidence": "accreditation", "source": "cap_chm18825"},
+        {"metric": "matrix_effect_cv_percent", "operator": "<=", "value": 15, "consequence_if_failed": "data showing that accuracy is not affected are required", "evidence": "accreditation", "source": "cap_chm18825"}
+      ]
+    },
+    {
+      "key": "specificity",
+      "name": "Specificity and interferences",
+      "design": {
+        "method": "Paired difference: matrix (preferably patient sample) with and without the potential interferent at high concentration",
+        "candidates": ["drugs used for the target disease", "common OTC drugs", "isobaric and structurally similar compounds (e.g. steroids)", "haemolysis, icterus, lipaemia", "collection tubes (gel separators)", "endogenous interferences in relevant disease states"],
+        "evidence": "clsi_public + summary_c62a + practice",
+        "source": ["clsi_ep07", "lynch2016", "stone2023"]
+      },
+      "criteria": [
+        {"metric": "interference_effect", "lab_defined": true, "value": null, "description": "Interferent must not alter the calculated concentration", "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "ion_ratio_deviation_percent", "operator": "<=", "value": 20, "relative_to": "mean ion ratio of the calibrators", "applies_if": "qualifier signal > 50% of quantifier", "evidence": "summary_c62a", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "carryover",
+      "name": "Carry-over",
+      "design": {"method": "Extracted negative samples injected after samples of increasing concentration", "evidence": "summary_c62a", "source": "lynch2016"},
+      "criteria": [
+        {"metric": "carryover_in_blank", "operator": "<", "value": 25, "unit": "% of LLMI", "output": "carry-over limit (highest concentration that does not carry over)", "evidence": "summary_c62a", "source": "lynch2016", "confirmed_in_ed2_practice": "c62ed2_practice"}
+      ]
+    },
+    {
+      "key": "dilution",
+      "name": "Dilution integrity",
+      "design": {"replicates_per_dilution_min": 5, "concentration": "> 3x LLMI", "diluent": "analyte-free native matrix preferred", "evidence": "summary_c62a", "source": "lynch2016"},
+      "criteria": [
+        {"metric": "mean_recovery_percent", "target": 100, "tolerance_sd": 15, "evidence": "summary_c62a", "source": "lynch2016"},
+        {"metric": "cv_percent", "operator": "<", "value": 15, "evidence": "summary_c62a", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "recovery",
+      "name": "Extraction recovery",
+      "design": {"levels": ["low", "medium", "high"], "comparison": "extracted vs unextracted standards (100%)", "endogenous": "standard additions when the matrix is not blank", "evidence": "summary_c62a", "source": "lynch2016"},
+      "criteria": [
+        {"metric": "recovery", "lab_defined": true, "value": null, "description": "Analyte and IS recovery consistent, precise and reproducible", "evidence": "summary_c62a", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "stability",
+      "name": "Stability",
+      "design": {
+        "conditions": ["whole blood before centrifugation", "serum/plasma at every storage temperature and time", "freeze-thaw (including re-analysis)", "final extract / autosampler", "stock and working solutions", "analyte in the blank matrix used for calibrators", "in-house critical reagents (mobile phases, extraction solutions)"],
+        "materials": "Individual patient samples preferred; pools as alternative; not lyophilised commercial QC",
+        "evidence": "practice",
+        "source": "stone2023"
+      },
+      "criteria": [
+        {"metric": "stability", "lab_defined": true, "value": null, "note": "C62-A gives no specification and refers to FDA bioanalytical stability experiments", "evidence": "summary_c62a", "source": "lynch2016"}
+      ]
+    },
+    {
+      "key": "reference_interval",
+      "name": "Reference interval",
+      "design": {"subjects_min": 120, "alternative": "transfer of a well-defined published interval, or method comparison as surrogate, with justification", "evidence": "practice", "source": "stone2023"},
+      "criteria": []
+    }
+  ],
+  "run_acceptance_for_qc_module": {
+    "note": "Routine run checks reported as common practice; candidates for the QC module, not validation criteria.",
+    "checks": [
+      {"metric": "calibrator_accuracy", "range_percent": [85, 115], "llmi_range_percent": [80, 120], "evidence": "practice", "source": "rappold2022"},
+      {"metric": "qc_accuracy", "within_percent": 15, "evidence": "practice", "source": "rappold2022"},
+      {"metric": "ion_ratio", "within_percent_of_calibrator_mean": 20, "evidence": "practice", "source": "rappold2022"},
+      {"metric": "is_response", "within_percent_of_calibrator_qc_mean": 50, "note": "validation-based ranges preferred", "evidence": "practice", "source": "rappold2022"},
+      {"metric": "qc_levels", "value": "at least 3 (about 3x LLMI, mid-range, near ULMI) in duplicate; at least 5% of patient samples per batch", "evidence": "summary_c62a", "source": "lynch2016"}
+    ]
+  },
+  "not_available": [
+    "Exact wording and any changed criteria of CLSI C62 2nd (2022) and 3rd (2026) editions",
+    "EP17 non-parametric rank formula details and the C62 recommendation on LoB for LC-MS/MS",
+    "EP06 2nd ed. recommended number of levels and replicates"
+  ]
+}

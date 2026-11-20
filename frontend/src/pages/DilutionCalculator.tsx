@@ -1,66 +1,35 @@
 import { useState } from 'react'
-import { Plus, Trash2, Download, Copy, CheckCircle, FlaskConical } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Beaker, Check, Copy, Download, Plus, Trash2 } from 'lucide-react'
+import SEO from '../components/SEO'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
-// Unit conversions to ng/mL base
-const CONC_UNITS = ['ng/mL', 'pg/mL', 'µg/mL', 'mg/mL', 'µg/dL', 'ng/dL', 'nmol/L', 'pmol/L', 'µmol/L', 'mmol/L']
-const VOL_UNITS = ['µL', 'mL', 'L']
+/** Mass and molar units are separate families: converting between them needs
+ *  the molecular weight, so mixing them here is flagged instead of silently
+ *  assumed 1:1 (use the Unit Converter for the bridge). */
+const MASS_UNITS = ['ng/mL', 'pg/mL', 'µg/mL', 'mg/mL', 'µg/dL', 'ng/dL'] as const
+const MOLAR_UNITS = ['nmol/L', 'pmol/L', 'µmol/L', 'mmol/L'] as const
+const CONC_UNITS = [...MASS_UNITS, ...MOLAR_UNITS]
+const VOL_UNITS = ['µL', 'mL', 'L'] as const
 
-const toNgmL: Record<string, number> = {
-  'ng/mL': 1, 'pg/mL': 0.001, 'µg/mL': 1000, 'mg/mL': 1e6,
-  'µg/dL': 10, 'ng/dL': 0.1,
+const toBaseFactor: Record<string, number> = {
+  'ng/mL': 1, 'pg/mL': 0.001, 'µg/mL': 1000, 'mg/mL': 1e6, 'µg/dL': 10, 'ng/dL': 0.01,
   'nmol/L': 1, 'pmol/L': 0.001, 'µmol/L': 1000, 'mmol/L': 1e6,
 }
 const toUL: Record<string, number> = { 'µL': 1, 'mL': 1000, 'L': 1e6 }
+const family = (u: string) => (MOLAR_UNITS as readonly string[]).includes(u) ? 'molar' : 'mass'
 
-function fromBase(val: number, unit: string): number {
-  return val / toNgmL[unit]
-}
-function toBase(val: number, unit: string): number {
-  return val * toNgmL[unit]
-}
-function volToUL(val: number, unit: string): number {
-  return val * toUL[unit]
-}
-function ulToVol(val: number, unit: string): number {
-  return val / toUL[unit]
-}
+interface Level { id: number; name: string; conc: string; concUnit: string; volume: string; volUnit: string; replicates: number }
 
-interface Level {
-  id: number
-  name: string
-  conc: string
-  concUnit: string
-  volume: string
-  volUnit: string
-  replicates: number
-  color: string
-}
-
-interface Stock {
-  conc: string
-  concUnit: string
-  volume: string
-  volUnit: string
-  name: string
-}
-
-interface SerialStep {
-  id: number
-  name: string
-  dilutionFactor: string
-  volume: string
-  volUnit: string
-}
-
-const COLORS = ['#6366f1','#f97316','#22c55e','#eab308','#ec4899','#14b8a6','#8b5cf6','#f43f5e']
-
-const LEVEL_PRESETS = {
-  'CLSI EP15 (5×5)': [
+const LEVEL_PRESETS: Record<string, { name: string; concMult: number; replicates: number }[]> = {
+  'CLSI 3 QC levels': [
     { name: 'QC Low', concMult: 3, replicates: 5 },
     { name: 'QC Mid', concMult: 15, replicates: 5 },
     { name: 'QC High', concMult: 75, replicates: 5 },
   ],
-  'FDA 3 QC levels': [
+  'FDA QC set': [
     { name: 'LLOQ QC', concMult: 1, replicates: 5 },
     { name: 'QC Low', concMult: 3, replicates: 5 },
     { name: 'QC Mid', concMult: 30, replicates: 5 },
@@ -77,569 +46,292 @@ const LEVEL_PRESETS = {
 }
 
 let nextId = 10
+const fmtVol = (ul: number) => ul >= 1000 ? `${(ul / 1000).toFixed(2)} mL` : ul >= 10 ? `${ul.toFixed(1)} µL` : `${ul.toFixed(2)} µL`
+
+function UnitSelect({ value, onChange, units }: { value: string; onChange: (v: string) => void; units: readonly string[] }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      className="h-9 shrink-0 rounded-md border border-input bg-background px-1.5 text-xs text-foreground">
+      {units.map(u => <option key={u}>{u}</option>)}
+    </select>
+  )
+}
 
 export default function DilutionCalculator() {
   const [mode, setMode] = useState<'direct' | 'serial' | 'working'>('direct')
   const [copied, setCopied] = useState<string | null>(null)
-
-  // Stock solution
-  const [stock, setStock] = useState<Stock>({
-    name: 'Stock solution',
-    conc: '1000', concUnit: 'µg/mL',
-    volume: '1', volUnit: 'mL',
-  })
-
-  // Diluent
+  const [stock, setStock] = useState({ name: 'Working stock', conc: '1', concUnit: 'µg/mL', volume: '1', volUnit: 'mL' })
   const [diluent, setDiluent] = useState('Water / mobile phase A')
-
-  // Target levels
   const [levels, setLevels] = useState<Level[]>([
-    { id: 1, name: 'LLOQ', conc: '0.5', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5, color: COLORS[0] },
-    { id: 2, name: 'QC Low', conc: '1.5', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5, color: COLORS[1] },
-    { id: 3, name: 'QC Mid', conc: '10', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5, color: COLORS[2] },
-    { id: 4, name: 'QC High', conc: '75', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5, color: COLORS[3] },
+    { id: 1, name: 'LLOQ', conc: '0.5', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5 },
+    { id: 2, name: 'QC Low', conc: '1.5', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5 },
+    { id: 3, name: 'QC Mid', conc: '10', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5 },
+    { id: 4, name: 'QC High', conc: '75', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 5 },
   ])
-
-  // Serial dilution
-  const [serialSteps, setSerialSteps] = useState<SerialStep[]>([
-    { id: 1, name: 'Step 1', dilutionFactor: '10', volume: '1', volUnit: 'mL' },
-    { id: 2, name: 'Step 2', dilutionFactor: '10', volume: '1', volUnit: 'mL' },
-    { id: 3, name: 'Step 3', dilutionFactor: '10', volume: '1', volUnit: 'mL' },
+  const [serialSteps, setSerialSteps] = useState([
+    { id: 1, dilutionFactor: '10', volume: '1', volUnit: 'mL' },
+    { id: 2, dilutionFactor: '10', volume: '1', volUnit: 'mL' },
+    { id: 3, dilutionFactor: '10', volume: '1', volUnit: 'mL' },
   ])
+  const [working, setWorking] = useState({ conc: '100', concUnit: 'ng/mL', volume: '10', volUnit: 'mL' })
 
-  const addLevel = () => {
-    setLevels(ls => [...ls, {
-      id: nextId++, name: `Level ${ls.length + 1}`,
-      conc: '', concUnit: 'ng/mL', volume: '1', volUnit: 'mL',
-      replicates: 3, color: COLORS[ls.length % COLORS.length]
-    }])
-  }
+  const updateLevel = (id: number, field: keyof Level, val: any) =>
+    setLevels(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l))
 
-  const removeLevel = (id: number) => setLevels(ls => ls.filter(l => l.id !== id))
-
-  const updateLevel = (id: number, field: keyof Level, val: any) => {
-    setLevels(ls => ls.map(l => l.id === id ? {...l, [field]: val} : l))
-  }
-
-  const applyPreset = (preset: keyof typeof LEVEL_PRESETS) => {
-    const lloq = parseFloat(levels[0]?.conc || '0.5')
-    const lloqUnit = levels[0]?.concUnit || 'ng/mL'
-    const volVal = levels[0]?.volume || '1'
-    const volUnit = levels[0]?.volUnit || 'mL'
-    const items = LEVEL_PRESETS[preset]
-    setLevels(items.map((item, i) => ({
-      id: nextId++,
-      name: item.name,
-      conc: (lloq * item.concMult).toString(),
-      concUnit: lloqUnit,
-      volume: volVal,
-      volUnit: volUnit,
-      replicates: item.replicates,
-      color: COLORS[i % COLORS.length],
+  const applyPreset = (key: string) => {
+    const base = parseFloat(levels[0]?.conc || '0.5')
+    setLevels(LEVEL_PRESETS[key].map(item => ({
+      id: nextId++, name: item.name, conc: String(base * item.concMult),
+      concUnit: levels[0]?.concUnit || 'ng/mL', volume: levels[0]?.volume || '1',
+      volUnit: levels[0]?.volUnit || 'mL', replicates: item.replicates,
     })))
   }
 
-  // Calculate dilutions
-  const stockConcBase = toBase(parseFloat(stock.conc) || 0, stock.concUnit) // ng/mL equiv
-  const stockVolUL = volToUL(parseFloat(stock.volume) || 0, stock.volUnit)
+  const stockBase = (parseFloat(stock.conc) || 0) * toBaseFactor[stock.concUnit]
+  const stockFam = family(stock.concUnit)
+  const stockVolUL = (parseFloat(stock.volume) || 0) * toUL[stock.volUnit]
 
-  interface CalcResult {
-    level: Level
-    targetConcBase: number
-    totalVolUL: number
-    stockVolNeeded: number
-    diluentVol: number
-    dilutionFactor: number
-    valid: boolean
-    warning?: string
+  const calc = (concStr: string, concUnit: string, volStr: string, volUnit: string, replicates = 1) => {
+    const famMismatch = family(concUnit) !== stockFam
+    const targetBase = (parseFloat(concStr) || 0) * toBaseFactor[concUnit]
+    const totalVolUL = (parseFloat(volStr) || 0) * toUL[volUnit] * replicates
+    const stockVol = !famMismatch && stockBase > 0 ? targetBase * totalVolUL / stockBase : 0
+    const factor = !famMismatch && targetBase > 0 ? stockBase / targetBase : 0
+    let warning: string | undefined
+    if (famMismatch) warning = 'mixed-units'
+    else if (stockVol > totalVolUL) warning = 'Target exceeds the stock concentration'
+    else if (factor > 10000) warning = 'Dilution factor > 10,000 — use a serial dilution'
+    else if (stockVol > 0 && stockVol < 1) warning = 'Pipetting under 1 µL — prepare an intermediate dilution'
+    return { targetBase, totalVolUL, stockVol, diluentVol: totalVolUL - stockVol, factor, famMismatch, warning }
   }
 
-  const results: CalcResult[] = levels.map(l => {
-    const targetBase = toBase(parseFloat(l.conc) || 0, l.concUnit)
-    const totalVolUL = volToUL(parseFloat(l.volume) || 0, l.volUnit) * l.replicates
-    const stockVolNeeded = stockConcBase > 0 ? (targetBase * totalVolUL) / stockConcBase : 0
-    const diluentVol = totalVolUL - stockVolNeeded
-    const dilutionFactor = stockConcBase > 0 ? stockConcBase / targetBase : 0
-    const valid = stockVolNeeded > 0 && stockVolNeeded <= totalVolUL && diluentVol >= 0
-    let warning = undefined
-    if (stockVolNeeded > totalVolUL) warning = 'Target concentration exceeds stock'
-    if (stockVolNeeded < 0.1 && stockVolNeeded > 0) warning = 'Very small volume — consider intermediate dilution'
-    if (dilutionFactor > 10000) warning = 'Large dilution factor — use serial dilution'
+  const results = levels.map(l => ({ level: l, ...calc(l.conc, l.concUnit, l.volume, l.volUnit, l.replicates) }))
+  const totalStockUsed = results.reduce((s, r) => s + (r.famMismatch ? 0 : r.stockVol), 0)
+  const w = calc(working.conc, working.concUnit, working.volume, working.volUnit)
 
-    return { level: l, targetConcBase: targetBase, totalVolUL, stockVolNeeded, diluentVol, dilutionFactor, valid, warning }
-  })
-
-  // Serial dilution calculation
   const serialResults = (() => {
-    let currentConc = stockConcBase
-    return serialSteps.map((step, i) => {
+    let conc = stockBase
+    return serialSteps.map(step => {
       const factor = parseFloat(step.dilutionFactor) || 1
-      const volUL = volToUL(parseFloat(step.volume) || 0, step.volUnit)
-      const resultConc = currentConc / factor
-      const stockNeeded = volUL / factor
-      const diluentNeeded = volUL - stockNeeded
-      const prev = currentConc
-      currentConc = resultConc
-      return { step, factor, volUL, resultConc, stockNeeded, diluentNeeded, inputConc: prev }
+      const volUL = (parseFloat(step.volume) || 0) * toUL[step.volUnit]
+      const inputConc = conc
+      conc = conc / factor
+      return { step, factor, volUL, inputConc, resultConc: conc, stockNeeded: volUL / factor, diluentNeeded: volUL - volUL / factor }
     })
   })()
 
   const copyVal = (val: string, key: string) => {
-    navigator.clipboard.writeText(val)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 2000)
+    navigator.clipboard.writeText(val); setCopied(key); setTimeout(() => setCopied(null), 1500)
   }
 
   const exportProtocol = () => {
     const lines = [
-      'MetaboLC — Dilution Calculator Protocol',
-      '=========================================',
+      'Koiné — Dilution Calculator Protocol', '=========================================',
       `Stock: ${stock.name} | ${stock.conc} ${stock.concUnit} | ${stock.volume} ${stock.volUnit}`,
-      `Diluent: ${diluent}`,
-      '',
-      'PREPARATION INSTRUCTIONS',
-      '------------------------',
+      `Diluent: ${diluent}`, '', 'PREPARATION', '-----------',
     ]
-
     results.forEach((r, i) => {
-      lines.push(`\n${i+1}. ${r.level.name} (${r.level.conc} ${r.level.concUnit})`)
-      lines.push(`   Total volume needed: ${r.totalVolUL.toFixed(1)} µL (${r.level.replicates} replicates)`)
-      lines.push(`   Stock volume: ${r.stockVolNeeded.toFixed(2)} µL`)
+      lines.push(`\n${i + 1}. ${r.level.name} (${r.level.conc} ${r.level.concUnit}, ${r.level.replicates}x ${r.level.volume} ${r.level.volUnit})`)
+      if (r.famMismatch) { lines.push('   SKIPPED: stock and target are in different unit families (mass vs molar).'); return }
+      lines.push(`   Stock volume: ${r.stockVol.toFixed(2)} µL`)
       lines.push(`   Diluent volume: ${r.diluentVol.toFixed(2)} µL`)
-      lines.push(`   Dilution factor: 1:${r.dilutionFactor.toFixed(1)}`)
-      if (r.warning) lines.push(`   ⚠ ${r.warning}`)
+      lines.push(`   Dilution factor: 1:${r.factor.toFixed(1)}`)
+      if (r.warning) lines.push(`   WARNING: ${r.warning}`)
     })
-
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = 'dilution_protocol.txt'; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = 'dilution_protocol.txt'; a.click()
+    URL.revokeObjectURL(url)
   }
 
-  const InputRow = ({ label, val, onChange, unit, onUnitChange, units, placeholder = '' }: any) => (
-    <div>
-      <label className="text-xs text-slate-500 block mb-1">{label}</label>
-      <div className="flex gap-1">
-        <input type="number" value={val} onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 text-sm px-3 py-2 border border-slate-200 rounded-lg
-            font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-0" />
-        {unit && (
-          <select value={unit} onChange={e => onUnitChange(e.target.value)}
-            className="text-xs px-2 py-2 border border-slate-200 rounded-lg bg-white
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
-            {units.map((u: string) => <option key={u}>{u}</option>)}
-          </select>
-        )}
-      </div>
-    </div>
+  const panel = 'rounded-xl border border-border bg-card'
+  const mismatchNote = (
+    <span className="text-xs text-warning">
+      Mass ↔ molar needs the molecular weight — <Link to="/tools/unit-converter" className="underline">convert first</Link>
+    </span>
   )
 
   return (
-    <div style={{maxWidth:'1200px', margin:'0 auto', padding:'1.5rem'}}>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900 tracking-tight mb-1 flex items-center gap-2">
-          <FlaskConical size={20} className="text-teal-500" />
-          Dilution Calculator
-        </h1>
-        <p className="text-xs text-slate-400">
-          Prepare calibrators, QC samples and working solutions with exact volumes
-        </p>
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <SEO title="Dilution Calculator — Calibrators, QCs & Working Solutions"
+        description="Exact stock and diluent volumes for calibration curves, QC levels and serial dilutions." />
+      <div className="mb-5">
+        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground"><Beaker size={19} className="text-primary" /> Dilution calculator</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">Calibrators, QC samples and working solutions with exact volumes.</p>
       </div>
 
-      {/* Mode tabs */}
-      <div className="flex gap-1 border border-slate-200 rounded-xl p-1 bg-slate-50 mb-6 w-fit">
-        {[
-          { id: 'direct', label: 'Direct Dilution' },
-          { id: 'serial', label: 'Serial Dilution' },
-          { id: 'working', label: 'Working Solution' },
-        ].map(m => (
-          <button key={m.id} onClick={() => setMode(m.id as any)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all
-              ${mode === m.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            {m.label}
-          </button>
+      <div className="mb-5 flex w-fit gap-1 rounded-xl border border-border bg-muted/40 p-1">
+        {([['direct', 'Direct dilution'], ['serial', 'Serial dilution'], ['working', 'Working solution']] as const).map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setMode(id)}
+            className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              mode === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{label}</button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Left — Stock + Settings */}
-        <div className="space-y-4">
-          {/* Stock solution */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-800 mb-4">Stock Solution</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">Name</label>
-                <input value={stock.name} onChange={e => setStock(s => ({...s, name: e.target.value}))}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <InputRow label="Concentration" val={stock.conc}
-                onChange={(v: string) => setStock(s => ({...s, conc: v}))}
-                unit={stock.concUnit} onUnitChange={(u: string) => setStock(s => ({...s, concUnit: u}))}
-                units={CONC_UNITS} />
-              <InputRow label="Available volume" val={stock.volume}
-                onChange={(v: string) => setStock(s => ({...s, volume: v}))}
-                unit={stock.volUnit} onUnitChange={(u: string) => setStock(s => ({...s, volUnit: u}))}
-                units={VOL_UNITS} />
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <p className="text-xs text-slate-400">
-                Base concentration: <span className="font-mono text-slate-700">{stockConcBase.toExponential(3)} ng/mL equiv.</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Diluent */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-800 mb-3">Diluent</h2>
-            <input value={diluent} onChange={e => setDiluent(e.target.value)}
-              className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg
-                focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {['Matrix (blank)', 'Water', 'ACN:Water (50:50)', 'MeOH:Water (80:20)', 'Mobile phase A'].map(d => (
-                <button key={d} onClick={() => setDiluent(d)}
-                  className="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600
-                    hover:bg-teal-50 hover:text-teal-700 transition-all">
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Presets */}
-          {mode === 'direct' && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h2 className="text-sm font-semibold text-slate-800 mb-3">Apply preset</h2>
-              <div className="space-y-2">
-                {Object.keys(LEVEL_PRESETS).map(p => (
-                  <button key={p} onClick={() => applyPreset(p as any)}
-                    className="w-full text-left text-xs px-3 py-2 rounded-lg border border-slate-200
-                      hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-all">
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Export */}
-          <button onClick={exportProtocol}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3
-              bg-slate-900 text-white rounded-xl text-sm font-medium
-              hover:bg-slate-700 transition-all">
-            <Download size={15} /> Export Protocol (.txt)
-          </button>
-        </div>
-
-        {/* Right — Levels + Results */}
-        <div className="lg:col-span-2 space-y-4">
-
-          {mode === 'direct' && (
-            <>
-              {/* Level inputs */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-slate-800">Target Levels</h2>
-                  <button onClick={addLevel}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                      border border-teal-200 rounded-lg bg-teal-50 text-teal-700
-                      hover:bg-teal-100 transition-all">
-                    <Plus size={12} /> Add level
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {levels.map(l => (
-                    <div key={l.id} className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50">
-                      <div className="w-2 h-10 rounded-full shrink-0" style={{background: l.color}} />
-                      <input value={l.name} onChange={e => updateLevel(l.id, 'name', e.target.value)}
-                        className="text-xs font-medium w-28 px-2 py-1.5 border border-slate-200 rounded-lg
-                          bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                      <div className="flex gap-1 flex-1">
-                        <input type="number" value={l.conc}
-                          onChange={e => updateLevel(l.id, 'conc', e.target.value)}
-                          placeholder="Conc."
-                          className="flex-1 text-xs px-2 py-1.5 border border-slate-200 rounded-lg
-                            font-mono bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 min-w-0" />
-                        <select value={l.concUnit} onChange={e => updateLevel(l.id, 'concUnit', e.target.value)}
-                          className="text-xs px-1 py-1.5 border border-slate-200 rounded-lg bg-white
-                            focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                          {CONC_UNITS.map(u => <option key={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex gap-1">
-                        <input type="number" value={l.volume}
-                          onChange={e => updateLevel(l.id, 'volume', e.target.value)}
-                          placeholder="Vol."
-                          className="w-16 text-xs px-2 py-1.5 border border-slate-200 rounded-lg
-                            font-mono bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                        <select value={l.volUnit} onChange={e => updateLevel(l.id, 'volUnit', e.target.value)}
-                          className="text-xs px-1 py-1.5 border border-slate-200 rounded-lg bg-white
-                            focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                          {VOL_UNITS.map(u => <option key={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400">×</span>
-                        <input type="number" value={l.replicates} min={1} max={20}
-                          onChange={e => updateLevel(l.id, 'replicates', parseInt(e.target.value))}
-                          className="w-12 text-xs px-2 py-1.5 border border-slate-200 rounded-lg
-                            font-mono bg-white text-center focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                        <span className="text-xs text-slate-400">rep</span>
-                      </div>
-                      <button onClick={() => removeLevel(l.id)}
-                        className="text-slate-300 hover:text-red-400 transition-colors">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Results */}
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-800">Preparation Instructions</h2>
-                  <button onClick={() => {
-                    const text = results.map(r =>
-                      `${r.level.name}: ${r.stockVolNeeded.toFixed(2)} µL stock + ${r.diluentVol.toFixed(2)} µL diluent`
-                    ).join('\n')
-                    copyVal(text, 'all')
-                  }} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 transition-colors">
-                    {copied === 'all' ? <CheckCircle size={13} className="text-green-500" /> : <Copy size={13} />}
-                    Copy all
-                  </button>
-                </div>
-
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Level</th>
-                      <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Target</th>
-                      <th className="text-right px-4 py-2.5 text-slate-400 font-medium">Total vol.</th>
-                      <th className="text-right px-4 py-2.5 text-slate-400 font-medium">Stock (µL)</th>
-                      <th className="text-right px-4 py-2.5 text-slate-400 font-medium">Diluent (µL)</th>
-                      <th className="text-right px-4 py-2.5 text-slate-400 font-medium">Factor</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r, i) => (
-                      <tr key={r.level.id}
-                        className={`border-b border-slate-50 ${!r.valid && r.level.conc ? 'bg-red-50' : ''}`}>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{background: r.level.color}} />
-                            <span className="font-medium text-slate-800">{r.level.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-slate-700">
-                          {r.level.conc} {r.level.concUnit}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-right text-slate-600">
-                          {r.totalVolUL.toFixed(1)} µL
-                        </td>
-                        <td className="px-4 py-3 font-mono text-right">
-                          {r.valid ? (
-                            <span className="font-semibold text-indigo-700">
-                              {r.stockVolNeeded.toFixed(2)}
-                            </span>
-                          ) : '—'}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-right text-slate-600">
-                          {r.valid ? r.diluentVol.toFixed(2) : '—'}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-right text-slate-500">
-                          {r.valid ? `1:${r.dilutionFactor.toFixed(0)}` : '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {r.warning ? (
-                            <span className="text-orange-500 text-xs">⚠</span>
-                          ) : r.valid ? (
-                            <button onClick={() => copyVal(
-                              `${r.stockVolNeeded.toFixed(2)} µL stock + ${r.diluentVol.toFixed(2)} µL diluent`,
-                              `row-${i}`
-                            )} className="text-slate-300 hover:text-indigo-500 transition-colors">
-                              {copied === `row-${i}` ? <CheckCircle size={12} className="text-green-500" /> : <Copy size={12} />}
-                            </button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* Warnings */}
-                {results.some(r => r.warning) && (
-                  <div className="px-5 py-3 bg-orange-50 border-t border-orange-100">
-                    {results.filter(r => r.warning).map(r => (
-                      <p key={r.level.id} className="text-xs text-orange-600">
-                        ⚠ {r.level.name}: {r.warning}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {/* Summary */}
-                <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-slate-400">Total stock needed</p>
-                      <p className="text-sm font-mono font-semibold text-indigo-700">
-                        {results.reduce((a, r) => a + (r.valid ? r.stockVolNeeded : 0), 0).toFixed(2)} µL
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400">Total diluent needed</p>
-                      <p className="text-sm font-mono font-semibold text-slate-700">
-                        {results.reduce((a, r) => a + (r.valid ? r.diluentVol : 0), 0).toFixed(2)} µL
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400">Total volume</p>
-                      <p className="text-sm font-mono font-semibold text-slate-700">
-                        {results.reduce((a, r) => a + (r.valid ? r.totalVolUL : 0), 0).toFixed(1)} µL
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {mode === 'serial' && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-800">Serial Dilution Steps</h2>
-                <button onClick={() => setSerialSteps(s => [...s, { id: nextId++, name: `Step ${s.length+1}`, dilutionFactor: '10', volume: '1', volUnit: 'mL' }])}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                    border border-teal-200 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition-all">
-                  <Plus size={12} /> Add step
-                </button>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                {serialSteps.map((step, i) => (
-                  <div key={step.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs
-                      flex items-center justify-center font-bold shrink-0">{i+1}</div>
-                    <input value={step.name} onChange={e => setSerialSteps(s => s.map(x => x.id === step.id ? {...x, name: e.target.value} : x))}
-                      className="text-xs w-24 px-2 py-1.5 border border-slate-200 rounded-lg bg-white
-                        focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400">1:</span>
-                      <input type="number" value={step.dilutionFactor}
-                        onChange={e => setSerialSteps(s => s.map(x => x.id === step.id ? {...x, dilutionFactor: e.target.value} : x))}
-                        className="w-16 text-xs px-2 py-1.5 border border-slate-200 rounded-lg font-mono bg-white
-                          focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                    </div>
-                    <div className="flex gap-1">
-                      <input type="number" value={step.volume}
-                        onChange={e => setSerialSteps(s => s.map(x => x.id === step.id ? {...x, volume: e.target.value} : x))}
-                        className="w-16 text-xs px-2 py-1.5 border border-slate-200 rounded-lg font-mono bg-white
-                          focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                      <select value={step.volUnit}
-                        onChange={e => setSerialSteps(s => s.map(x => x.id === step.id ? {...x, volUnit: e.target.value} : x))}
-                        className="text-xs px-1 py-1.5 border border-slate-200 rounded-lg bg-white
-                          focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                        {VOL_UNITS.map(u => <option key={u}>{u}</option>)}
-                      </select>
-                    </div>
-                    <button onClick={() => setSerialSteps(s => s.filter(x => x.id !== step.id))}
-                      className="text-slate-300 hover:text-red-400 transition-colors ml-auto">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Serial results */}
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="text-left px-3 py-2.5 text-slate-400 font-medium">Step</th>
-                    <th className="text-left px-3 py-2.5 text-slate-400 font-medium">Input conc.</th>
-                    <th className="text-right px-3 py-2.5 text-slate-400 font-medium">Take (µL)</th>
-                    <th className="text-right px-3 py-2.5 text-slate-400 font-medium">Add diluent (µL)</th>
-                    <th className="text-right px-3 py-2.5 text-slate-400 font-medium">Result conc.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serialResults.map((r, i) => (
-                    <tr key={r.step.id} className="border-b border-slate-50">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">{r.step.name}</td>
-                      <td className="px-3 py-2.5 font-mono text-slate-500">{r.inputConc.toExponential(3)}</td>
-                      <td className="px-3 py-2.5 font-mono text-right font-semibold text-indigo-700">
-                        {r.stockNeeded.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2.5 font-mono text-right text-slate-600">
-                        {r.diluentNeeded.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2.5 font-mono text-right font-semibold text-teal-700">
-                        {r.resultConc.toExponential(3)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {mode === 'working' && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h2 className="text-sm font-semibold text-slate-800 mb-4">Working Solution Preparation</h2>
-              <p className="text-xs text-slate-400 mb-4">
-                Calculate how to prepare a working solution at a specific concentration and volume from your stock.
-              </p>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <InputRow label="Target concentration" val={levels[0]?.conc || ''}
-                  onChange={(v: string) => updateLevel(levels[0]?.id, 'conc', v)}
-                  unit={levels[0]?.concUnit} onUnitChange={(u: string) => updateLevel(levels[0]?.id, 'concUnit', u)}
-                  units={CONC_UNITS} placeholder="e.g. 100" />
-                <InputRow label="Target volume" val={levels[0]?.volume || ''}
-                  onChange={(v: string) => updateLevel(levels[0]?.id, 'volume', v)}
-                  unit={levels[0]?.volUnit} onUnitChange={(u: string) => updateLevel(levels[0]?.id, 'volUnit', u)}
-                  units={VOL_UNITS} placeholder="e.g. 1" />
-              </div>
-
-              {results[0]?.valid && (
-                <div className="bg-teal-50 border border-teal-200 rounded-xl p-5">
-                  <p className="text-sm font-semibold text-teal-800 mb-3">Preparation</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-teal-600 mb-1">Take from stock</p>
-                      <p className="text-2xl font-bold font-mono text-teal-800">
-                        {results[0].stockVolNeeded.toFixed(2)}
-                        <span className="text-sm font-normal ml-1">µL</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-teal-600 mb-1">Add diluent</p>
-                      <p className="text-2xl font-bold font-mono text-teal-800">
-                        {results[0].diluentVol.toFixed(2)}
-                        <span className="text-sm font-normal ml-1">µL</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-teal-600 mb-1">Dilution factor</p>
-                      <p className="text-2xl font-bold font-mono text-teal-800">
-                        1:{results[0].dilutionFactor.toFixed(0)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-teal-600 mt-3 pt-3 border-t border-teal-200">
-                    Mix {results[0].stockVolNeeded.toFixed(2)} µL of {stock.name} with {results[0].diluentVol.toFixed(2)} µL of {diluent}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+      <div className={cn(panel, 'mb-5 p-4')}>
+        <p className="label-caps mb-3 text-muted-foreground">Stock &amp; diluent</p>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Name</span>
+            <Input value={stock.name} onChange={e => setStock(s => ({ ...s, name: e.target.value }))} /></label>
+          <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Concentration</span>
+            <div className="flex gap-1">
+              <Input type="number" value={stock.conc} onChange={e => setStock(s => ({ ...s, conc: e.target.value }))} className="num min-w-0" />
+              <UnitSelect value={stock.concUnit} onChange={v => setStock(s => ({ ...s, concUnit: v }))} units={CONC_UNITS} />
+            </div></label>
+          <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Available volume</span>
+            <div className="flex gap-1">
+              <Input type="number" value={stock.volume} onChange={e => setStock(s => ({ ...s, volume: e.target.value }))} className="num min-w-0" />
+              <UnitSelect value={stock.volUnit} onChange={v => setStock(s => ({ ...s, volUnit: v }))} units={VOL_UNITS} />
+            </div></label>
+          <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Diluent</span>
+            <Input value={diluent} onChange={e => setDiluent(e.target.value)} /></label>
         </div>
       </div>
+
+      {mode === 'direct' && (
+        <div className={cn(panel, 'overflow-hidden')}>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">Target levels</h2>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {Object.keys(LEVEL_PRESETS).map(k => (
+                <button key={k} type="button" onClick={() => applyPreset(k)}
+                  className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                  title="Builds the levels from the first level's concentration">{k}</button>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setLevels(ls => [...ls, { id: nextId++, name: `Level ${ls.length + 1}`, conc: '', concUnit: 'ng/mL', volume: '1', volUnit: 'mL', replicates: 3 }])}><Plus size={12} /> Add</Button>
+              <Button size="sm" onClick={exportProtocol}><Download size={12} /> Export</Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-medium">Level</th>
+                  <th className="px-2 py-2 text-left font-medium">Target conc.</th>
+                  <th className="px-2 py-2 text-left font-medium">Vol / replicate</th>
+                  <th className="px-2 py-2 text-left font-medium">Repl.</th>
+                  <th className="px-2 py-2 text-right font-medium">Stock</th>
+                  <th className="px-2 py-2 text-right font-medium">Diluent</th>
+                  <th className="px-2 py-2 text-right font-medium">Factor</th>
+                  <th className="w-9"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {results.map(r => (
+                  <tr key={r.level.id} className={cn(r.warning && !r.famMismatch && 'bg-warning/[0.05]')}>
+                    <td className="px-3 py-1.5"><Input value={r.level.name} onChange={e => updateLevel(r.level.id, 'name', e.target.value)} className="h-8 w-28 text-xs" /></td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex gap-1">
+                        <Input type="number" value={r.level.conc} onChange={e => updateLevel(r.level.id, 'conc', e.target.value)} className="num h-8 w-20 text-xs" />
+                        <UnitSelect value={r.level.concUnit} onChange={v => updateLevel(r.level.id, 'concUnit', v)} units={CONC_UNITS} />
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex gap-1">
+                        <Input type="number" value={r.level.volume} onChange={e => updateLevel(r.level.id, 'volume', e.target.value)} className="num h-8 w-16 text-xs" />
+                        <UnitSelect value={r.level.volUnit} onChange={v => updateLevel(r.level.id, 'volUnit', v)} units={VOL_UNITS} />
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5"><Input type="number" min={1} value={r.level.replicates} onChange={e => updateLevel(r.level.id, 'replicates', parseInt(e.target.value) || 1)} className="num h-8 w-14 text-xs" /></td>
+                    {r.famMismatch ? (
+                      <td colSpan={3} className="px-2 py-1.5 text-center">{mismatchNote}</td>
+                    ) : (
+                      <>
+                        <td className="num px-2 py-1.5 text-right font-semibold text-primary">
+                          {r.stockVol > 0 ? fmtVol(r.stockVol) : '—'}
+                          {r.stockVol > 0 && (
+                            <button type="button" onClick={() => copyVal(r.stockVol.toFixed(2), `s${r.level.id}`)} className="ml-1 align-middle text-muted-foreground/60 hover:text-primary">
+                              {copied === `s${r.level.id}` ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                            </button>
+                          )}
+                        </td>
+                        <td className="num px-2 py-1.5 text-right text-foreground">{r.diluentVol > 0 ? fmtVol(r.diluentVol) : '—'}</td>
+                        <td className="num px-2 py-1.5 text-right text-muted-foreground">{r.factor > 0 ? `1:${r.factor >= 100 ? r.factor.toFixed(0) : r.factor.toFixed(1)}` : '—'}</td>
+                      </>
+                    )}
+                    <td className="px-2 py-1.5"><button type="button" onClick={() => setLevels(ls => ls.filter(l => l.id !== r.level.id))} aria-label="Remove" className="rounded p-1 text-muted-foreground/60 hover:bg-accent hover:text-destructive"><Trash2 size={13} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+            <span>Total stock used: <span className={cn('num', totalStockUsed > stockVolUL ? 'font-semibold text-destructive' : 'text-foreground')}>{fmtVol(totalStockUsed)}</span> of {fmtVol(stockVolUL)} available{totalStockUsed > stockVolUL && ' — not enough stock'}</span>
+            {results.filter(r => r.warning && !r.famMismatch).map(r => (
+              <span key={r.level.id} className="text-warning">{r.level.name}: {r.warning}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mode === 'serial' && (
+        <div className={cn(panel, 'overflow-hidden')}>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">Serial dilution from stock</h2>
+            <Button variant="outline" size="sm" onClick={() => setSerialSteps(ss => [...ss, { id: Date.now(), dilutionFactor: '10', volume: '1', volUnit: 'mL' }])}><Plus size={12} /> Add step</Button>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                <th className="px-3 py-2 text-left font-medium">Step</th>
+                <th className="px-2 py-2 text-left font-medium">Factor (1:x)</th>
+                <th className="px-2 py-2 text-left font-medium">Final volume</th>
+                <th className="px-2 py-2 text-right font-medium">Previous sol.</th>
+                <th className="px-2 py-2 text-right font-medium">Diluent</th>
+                <th className="px-2 py-2 text-right font-medium">Result ({stock.concUnit.includes('mol') ? 'nmol/L' : 'ng/mL'} eq.)</th>
+                <th className="w-9"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {serialResults.map((r, i) => (
+                <tr key={r.step.id}>
+                  <td className="num px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                  <td className="px-2 py-1.5"><Input type="number" value={r.step.dilutionFactor} onChange={e => setSerialSteps(ss => ss.map(s => s.id === r.step.id ? { ...s, dilutionFactor: e.target.value } : s))} className="num h-8 w-20 text-xs" /></td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex gap-1">
+                      <Input type="number" value={r.step.volume} onChange={e => setSerialSteps(ss => ss.map(s => s.id === r.step.id ? { ...s, volume: e.target.value } : s))} className="num h-8 w-16 text-xs" />
+                      <UnitSelect value={r.step.volUnit} onChange={v => setSerialSteps(ss => ss.map(s => s.id === r.step.id ? { ...s, volUnit: v } : s))} units={VOL_UNITS} />
+                    </div>
+                  </td>
+                  <td className="num px-2 py-1.5 text-right font-semibold text-primary">{fmtVol(r.stockNeeded)}</td>
+                  <td className="num px-2 py-1.5 text-right text-foreground">{fmtVol(r.diluentNeeded)}</td>
+                  <td className="num px-2 py-1.5 text-right text-foreground">{r.resultConc >= 1 ? r.resultConc.toFixed(2) : r.resultConc.toPrecision(3)}</td>
+                  <td className="px-2 py-1.5"><button type="button" onClick={() => setSerialSteps(ss => ss.filter(s => s.id !== r.step.id))} aria-label="Remove" className="rounded p-1 text-muted-foreground/60 hover:bg-accent hover:text-destructive"><Trash2 size={13} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">Each step takes the listed volume of the previous solution and tops up with diluent to the final volume.</p>
+        </div>
+      )}
+
+      {mode === 'working' && (
+        <div className={cn(panel, 'max-w-xl p-5')}>
+          <h2 className="mb-1 text-sm font-semibold text-foreground">Working solution</h2>
+          <p className="mb-4 text-xs text-muted-foreground">One solution at a target concentration and volume, straight from the stock.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Target concentration</span>
+              <div className="flex gap-1">
+                <Input type="number" value={working.conc} onChange={e => setWorking(s => ({ ...s, conc: e.target.value }))} className="num min-w-0" />
+                <UnitSelect value={working.concUnit} onChange={v => setWorking(s => ({ ...s, concUnit: v }))} units={CONC_UNITS} />
+              </div></label>
+            <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Final volume</span>
+              <div className="flex gap-1">
+                <Input type="number" value={working.volume} onChange={e => setWorking(s => ({ ...s, volume: e.target.value }))} className="num min-w-0" />
+                <UnitSelect value={working.volUnit} onChange={v => setWorking(s => ({ ...s, volUnit: v }))} units={VOL_UNITS} />
+              </div></label>
+          </div>
+          <div className="mt-4 rounded-lg bg-primary/5 p-4 text-sm">
+            {w.famMismatch ? mismatchNote : w.stockVol > 0 ? (
+              <>
+                <p className="text-foreground">Pipette <span className="num font-bold text-primary">{fmtVol(w.stockVol)}</span> of {stock.name.toLowerCase()} and add <span className="num font-bold text-foreground">{fmtVol(w.diluentVol)}</span> of {diluent.toLowerCase()}.</p>
+                <p className="num mt-1 text-xs text-muted-foreground">Dilution 1:{w.factor >= 100 ? w.factor.toFixed(0) : w.factor.toFixed(1)}</p>
+                {w.warning && <p className="mt-1 text-xs text-warning">{w.warning}</p>}
+              </>
+            ) : <p className="text-muted-foreground">Enter a target below the stock concentration.</p>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

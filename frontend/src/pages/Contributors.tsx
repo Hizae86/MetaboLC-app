@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import SEO from '../components/SEO'
 import axios from 'axios'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
+const API = (import.meta.env.VITE_API_URL || '') + '/api'
 
 const COUNTRY_FLAG: Record<string, string> = {
   'Switzerland': '🇨🇭', 'France': '🇫🇷', 'Spain': '🇪🇸', 'UK': '🇬🇧',
@@ -66,7 +66,7 @@ export default function Contributors() {
   return (
     <>
     <SEO title="Top Contributors"
-      description="Researchers and laboratories sharing clinical LC-MS/MS methods with the MetaboLC community." />
+      description="Researchers and laboratories sharing clinical LC-MS/MS methods with the Koiné community." />
     <style>{`
       .contributors-page { background: #060d1a; min-height: 100vh; }
       .contributors-page .bg-white { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
@@ -102,11 +102,12 @@ export default function Contributors() {
             const isFirst = rank === 1
             const minHeight = rank === 1 ? '176px' : rank === 2 ? '132px' : '104px'
             return (
-              <div key={c.name}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all
+              <Link key={c.name} to={`/methods?q=${encodeURIComponent(c.name)}`}
+                title={`View ${c.name}'s methods`}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer
                   ${isFirst ? '' : 'bg-white border-slate-200'}`}
                 style={{
-                  minHeight,
+                  minHeight, textDecoration: 'none',
                   ...(isFirst ? {background:'rgba(245,158,11,0.1)', borderColor:'rgba(245,158,11,0.35)', boxShadow:'0 4px 20px rgba(245,158,11,0.12)'} : {})
                 }}>
                 <span className="text-xl mb-1">{medal}</span>
@@ -125,7 +126,7 @@ export default function Contributors() {
                   <span className="text-xs">{COUNTRY_FLAG[c.country] || '🌍'}</span>
                   <p className="text-xs text-slate-400">{c.method_count} methods</p>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>
@@ -143,7 +144,10 @@ export default function Contributors() {
         ) : (
           <div className="divide-y divide-slate-100">
             {contributors.map((c, i) => (
-              <div key={i} className="px-5 py-3.5 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+              <Link key={i} to={`/methods?q=${encodeURIComponent(c.name)}`}
+                title={`View ${c.name}'s methods`}
+                style={{textDecoration:'none'}}
+                className="px-5 py-3.5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer">
                 {/* Rank */}
                 <div className="w-8 shrink-0 text-center">
                   {i < 3 ? (
@@ -191,7 +195,7 @@ export default function Contributors() {
                   </span>
                   <p className="text-xs text-slate-400">methods</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

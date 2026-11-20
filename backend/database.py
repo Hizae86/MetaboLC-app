@@ -2,9 +2,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+import backend.env  # noqa: F401  (loads .env before reading DATABASE_URL)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./metabolc.db")
 

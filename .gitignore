@@ -1,4 +1,19 @@
-waters_methods.json
-*.json
 .env
 venv/
+# Only root-level JSON (package-lock.json etc.) — a bare "*.json" here
+# matched at ANY depth, including frontend/package.json, tsconfig*.json
+# and components.json, which risked excluding the frontend's own manifest
+# from a fresh clone.
+/*.json
+# Raw vendor export dumps used only to seed the DB during development —
+# moved out of the repo root into their own folder; see backend/scripts/
+# for the import/enrichment scripts that read them.
+/data/vendor_exports/
+
+# Local copies Claude makes before changing files, and files set aside to delete
+/Claude outputs/
+/_to_delete/
+# Python bytecode and installed packages
+__pycache__/
+*.pyc
+node_modules/

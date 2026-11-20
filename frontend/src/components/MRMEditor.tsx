@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { checkTransition, visibleIssues, worstLevel } from '@/lib/massSpec'
 
 interface MFRParam { headers: string[]; fields: string[] }
 interface Trans { [key: string]: any }
@@ -8,9 +9,13 @@ interface Props {
   setTrans: (t: Trans[]) => void
   mfrParams: MFRParam
   IS?: any
+  ionization?: string
 }
 
-export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
+export default function MRMEditor({ trans, setTrans, mfrParams, ionization }: Props) {
+  // Product heavier than precursor, polarity unlike the adduct or the method.
+  const issues = trans.map(t => visibleIssues(t, checkTransition(t, { methodIonization: ionization })))
+  const flagged = issues.filter(x => x.length).length
   const [active, setActive] = useState<{ r: number; c: number } | null>(null)
   const [fillMenu, setFillMenu] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -46,6 +51,8 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
   const update = (row: number, field: string, val: any) => {
     const s = [...trans]
     s[row] = { ...s[row], [field]: val }
+    // An edited m/z or polarity needs a fresh review.
+    if (['precursor_mz', 'product_mz', 'polarity'].includes(field)) s[row].review_checked = 0
     setTrans(s)
   }
 
@@ -186,6 +193,10 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
   }
 
   return (
+    <>
+    {flagged > 0 && (
+      <p className="mb-1.5 text-xs text-amber-300">⚠ {flagged} transition{flagged > 1 ? 's' : ''} to check (product heavier than the precursor, or polarity unlike the adduct or the method). Hover the ⚠ in the row for details.</p>
+    )}
     <div className="border border-white/10 rounded-xl overflow-hidden bg-white/[0.03]">
       {/* Scrollable container */}
       <div style={{ maxHeight: '420px', overflowY: 'auto', overflowX: 'auto' }}>
@@ -222,7 +233,7 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                   </div>
                 </th>
               ))}
-              <th style={{ width: 32 }} />
+              <th style={{ width: 48 }} />
             </tr>
           </thead>
 
@@ -268,7 +279,11 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
                     ))}
 
                     {/* Delete */}
-                    <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '2px' }}>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '2px', whiteSpace: 'nowrap' }}>
+                      {issues[idx]?.length > 0 && (
+                        <span title={issues[idx].map(x => x.message).join(' ')} aria-label={issues[idx].map(x => x.message).join(' ')}
+                          className={`cursor-help text-xs ${worstLevel(issues[idx]) === 'error' ? 'text-red-400' : 'text-amber-300'}`}>⚠</span>
+                      )}
                       <button onClick={() => setTrans(trans.filter((_, i) => i !== idx))}
                         className="text-slate-600 hover:text-red-400 transition-colors text-base leading-none px-1">
                         ×
@@ -310,5 +325,6 @@ export default function MRMEditor({ trans, setTrans, mfrParams }: Props) {
         <span>Paste TSV from Excel</span>
       </div>
     </div>
+    </>
   )
 }

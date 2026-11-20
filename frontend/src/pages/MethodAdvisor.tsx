@@ -4,9 +4,10 @@ import MethodDraftGenerator from '../components/MethodDraftGenerator'
 import TroubleshootingAdvisor from '../components/TroubleshootingAdvisor'
 import SEO from '../components/SEO'
 import axios from 'axios'
+import { FlaskConical, MessageSquare, Wrench } from 'lucide-react'
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
-const STORAGE_KEY = 'dra-massa-chat'
+const API = (import.meta.env.VITE_API_URL || '') + '/api'
+const STORAGE_KEY = 'metabolc-assistant-chat'
 
 interface MatchedMethod {
   id: number
@@ -93,24 +94,19 @@ export default function MethodAdvisor() {
     <div style={{maxWidth:'800px',margin:'0 auto',height:'calc(100vh - 120px)',
       display:'flex',flexDirection:'column'}}>
 
-      <SEO title="Ask Dra. Massa — AI LC-MS/MS Method Advisor"
-        description="Get personalized LC-MS/MS method recommendations grounded in the MetaboLC repository — analytes, matrices, instrumentation, and validation." />
+      <SEO title="AI Method Assistant — LC-MS/MS Method Advisor"
+        description="Get personalized LC-MS/MS method recommendations grounded in the Koiné repository — analytes, matrices, instrumentation, and validation." />
 
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',gap:'14px',
         paddingBottom:'16px',borderBottom:'0.5px solid rgba(255,255,255,0.1)',marginBottom:'16px'}}>
         <div style={{position:'relative',flexShrink:0}}>
-          <img src="/dra-massa.png" alt="Dra. Massa"
-            style={{width:'64px',height:'64px',borderRadius:'50%',objectFit:'cover',
-              border:'2px solid rgba(255,255,255,0.15)',display:'block'}}
-            onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
-          <div style={{position:'absolute',inset:'-4px',borderRadius:'50%',
-            border:'2px solid #5DCAA5',pointerEvents:'none'}} />
+          <img src="/koine-mark.svg" width={64} height={64} alt="" aria-hidden="true" style={{display:'block'}} />
           <div style={{position:'absolute',bottom:'2px',right:'2px',width:'12px',height:'12px',
             borderRadius:'50%',background:'#1D9E75',border:'2px solid #060d1a'}} />
         </div>
         <div style={{flex:1}}>
-          <p style={{fontSize:'16px',fontWeight:'500',color:'#f1f5f9',margin:'0 0 2px'}}>Dra. Massa</p>
+          <p style={{fontSize:'16px',fontWeight:'500',color:'#f1f5f9',margin:'0 0 2px'}}>Assistant</p>
           <p style={{fontSize:'12px',color:'#94a3b8',margin:'0 0 6px'}}>
             LC-MS/MS expert · Based on your method repository
           </p>
@@ -131,17 +127,17 @@ export default function MethodAdvisor() {
       <div className="flex items-center justify-between border-b border-white/10 mb-4">
         <div className="flex">
           {[
-            { id: 'chat', label: '💬 Ask Dra. Massa' },
-            { id: 'draft', label: '🧪 Method Draft' },
-            { id: 'troubleshoot', label: '🔬 Troubleshoot' },
-          ].map(tab => (
+            { id: 'chat', label: 'Chat', Icon: MessageSquare },
+            { id: 'draft', label: 'Method Draft', Icon: FlaskConical },
+            { id: 'troubleshoot', label: 'Troubleshoot', Icon: Wrench },
+          ].map(({ Icon, ...tab }) => (
             <button key={tab.id}
               onClick={() => setAdvisorTab(tab.id as any)}
-              className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-all -mb-px
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-all -mb-px
                 ${advisorTab === tab.id
-                  ? 'border-teal-400 text-teal-300'
+                  ? 'border-sky-400 text-sky-300'
                   : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-              {tab.label}
+              <Icon size={13} aria-hidden="true" />{tab.label}
             </button>
           ))}
         </div>
@@ -197,10 +193,11 @@ export default function MethodAdvisor() {
           <div key={i} style={{display:'flex',
             justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
             {msg.role === 'assistant' && (
-              <img src="/dra-massa.png" alt="Dra. Massa"
-                style={{width:'32px',height:'32px',borderRadius:'50%',objectFit:'cover',
-                  border:'1.5px solid rgba(255,255,255,0.15)',marginRight:'8px',flexShrink:0,
-                  alignSelf:'flex-start',marginTop:'4px'}} />
+              <div style={{width:'32px',height:'32px',borderRadius:'50%',marginRight:'8px',flexShrink:0,
+                alignSelf:'flex-start',marginTop:'4px',background:'#2d5a8e',
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <i className="ti ti-sparkles" style={{fontSize:'14px',color:'white'}} aria-hidden="true" />
+              </div>
             )}
             <div style={{
               maxWidth:'75%',padding:'10px 14px',borderRadius:'12px',
@@ -238,9 +235,10 @@ export default function MethodAdvisor() {
 
         {loading && (
           <div style={{display:'flex',alignItems:'flex-start',gap:'8px'}}>
-            <img src="/dra-massa.png" alt="Dra. Massa"
-              style={{width:'32px',height:'32px',borderRadius:'50%',objectFit:'cover',
-                border:'1.5px solid rgba(255,255,255,0.15)',flexShrink:0}} />
+            <div style={{width:'32px',height:'32px',borderRadius:'50%',flexShrink:0,
+              background:'#2d5a8e',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <i className="ti ti-sparkles" style={{fontSize:'14px',color:'white'}} aria-hidden="true" />
+            </div>
             <div style={{padding:'10px 14px',borderRadius:'12px',background:'rgba(255,255,255,0.05)',
               border:'1px solid rgba(255,255,255,0.1)',display:'flex',gap:'4px',alignItems:'center'}}>
               {[0,1,2].map(j => (
